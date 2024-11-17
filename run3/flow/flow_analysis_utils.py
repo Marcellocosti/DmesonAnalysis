@@ -2,11 +2,11 @@
 Analysis utilities for flow analysis
 '''
 
-import ROOT
 import os
 import sys
 import ctypes
 from itertools import combinations
+import ROOT
 import numpy as np
 
 def get_vn_versus_mass(thnSparses, inv_mass_bins, mass_axis, vn_axis, debug=False):
