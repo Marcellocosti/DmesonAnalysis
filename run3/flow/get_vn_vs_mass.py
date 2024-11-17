@@ -10,7 +10,7 @@ import ctypes
 import numpy as np
 import yaml
 from ROOT import TLatex, TFile, TCanvas, TLegend, TH1D, TH1F, TDatabasePDG, TGraphAsymmErrors # pylint: disable=import-error,no-name-in-module
-from ROOT import gROOT, gPad, gInterpreter, kBlack, kRed, kAzure, kGray, kOrange, kFullCircle, kFullSquare, kOpenCircle # pylint: disable=import-error,no-name-in-module
+from ROOT import gROOT, gPad, gInterpreter, kBlack, kRed, kAzure, kGray, kOrange, kMagenta, kFullCircle, kFullSquare, kOpenCircle # pylint: disable=import-error,no-name-in-module
 from flow_analysis_utils import get_centrality_bins, get_vnfitter_results, get_ep_vn, getD0ReflHistos # pylint: disable=import-error,no-name-in-module
 sys.path.append('../../')
 gInterpreter.ProcessLine(f'#include "invmassfitter/InvMassFitter.cxx"')
@@ -134,7 +134,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 elif fitConfig.get('ProduceNew') and fitConfig.get('FromSim'):
                     KDEtemplates[iPt][iFlag] = kde_producer_sim(fitConfig['MCTemplatesInputs'][iPt][iFlag],
                                                                 fitConfig['MCTemplatesTreeNames'][iPt][iFlag],
-                                                                ptMins[iPt], ptMaxs[iPt])
+                                                                ptMins[iPt], ptMaxs[iPt], fitConfig['MCTemplatesFlags'][iPt][iFlag])
                     KDEtemplatesNames[iPt][iFlag] = fitConfig['MCTemplatesTreeNames'][iPt][iFlag]
                 else:
                     templFile = TFile.Open(f'{fitConfig["MCTemplatesFiles"][iPt][iFlag]}', 'r')
@@ -431,7 +431,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
             fBkgFuncMass.append(vnResults['fBkgFuncMass'])
             fBkgFuncVn.append(vnResults['fBkgFuncVn'])
             fMassTemplFuncts[iPt] = vnResults['fMassTemplFuncts']
-            fVnTemplFuncts[iPt] = vnResults['fVnTemplFuncts']
+            # fVnTemplFuncts[iPt] = vnResults['fVnTemplFuncts']
 
             hSigmaSimFit.SetBinContent(iPt+1, vnResults['sigma'])
             hSigmaSimFit.SetBinError(iPt+1, vnResults['sigmaUnc'])
@@ -488,10 +488,12 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 latex.DrawLatex(0.18, 0.60, f'Signif. (3#sigma) = {round(vnResults["sgn"], 2)}')
                 print(f'Drawing fMassTemplFuncts')
                 print(fMassTemplFuncts)
-                for iMassTemplFunct in fMassTemplFuncts[iPt]:
-                    print(f'Eval: {iMassTemplFunct.Eval(1.8)}')
-                    iMassTemplFunct.SetLineColor(1)
-                    iMassTemplFunct.Draw('same')
+                for iMassTemplFunct, massTemplFunct in enumerate(fMassTemplFuncts[iPt]):
+                    print("Setting object styleeee")
+                    SetObjectStyle(massTemplFunct, color=kMagenta+iMassTemplFunct*2, linewidth=3)
+                    print(f'Eval: {massTemplFunct.Eval(1.8)}')
+                    massTemplFunct.SetLineColor(1)
+                    massTemplFunct.Draw('same')
                     cSimFit[iCanv].Modified()
                     cSimFit[iCanv].Update()
                 cSimFit[iPt].cd(2)
@@ -510,13 +512,13 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 if secPeak:
                     latex.DrawLatex(0.18, 0.75,
                                     f'#it{{v}}{harmonic}(D^{{+}}) = {vnResults["vnSecPeak"]:.3f} #pm {vnResults["vnSecPeakUnc"]:.3f}')
-                print(f'Drawing fVnTemplFuncts')
-                print(fVnTemplFuncts)
-                for iVnTemplFunct in fVnTemplFuncts[iPt]:
-                    print(f'Eval: {iVnTemplFunct.Eval(1.8)}')
-                    iVnTemplFunct.Draw('same')
-                    cSimFit[iCanv].Modified()
-                    cSimFit[iCanv].Update()
+                # print(f'Drawing fVnTemplFuncts')
+                # print(fVnTemplFuncts)
+                # for iVnTemplFunct in fVnTemplFuncts[iPt]:
+                #     print(f'Eval: {iVnTemplFunct.Eval(1.8)}')
+                #     iVnTemplFunct.Draw('same')
+                #     cSimFit[iCanv].Modified()
+                #     cSimFit[iCanv].Update()
                 cSimFit[iCanv].Modified()
                 cSimFit[iCanv].Update()
 
@@ -747,8 +749,8 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
         gvnUncSecPeak.Draw('pez same')
     canvVnUnc.Modified()
     canvVnUnc.Update()
-    if not batch:
-        input('Press Enter to continue...')
+    # if not batch:
+    #     input('Press Enter to continue...')
 
     #save output histos
     print(f'Saving output to {outputdir}')
@@ -760,7 +762,10 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 suffix_pdf = ')'
             else:
                 suffix_pdf = ''
-            cSimFit[iPt].SaveAs(f'{outputdir}/SimFit{suffix}_{particleName}.pdf{suffix_pdf}')
+            if len(ptMins)==1:
+                cSimFit[iPt].SaveAs(f'{outputdir}/SimFit{suffix}_{particleName}.pdf')
+            else:
+                cSimFit[iPt].SaveAs(f'{outputdir}/SimFit{suffix}_{particleName}.pdf{suffix_pdf}')
     outfile_name = f'{outputdir}/raw_yields{suffix}.root'
     outFile = TFile(outfile_name, 'recreate')
     if vn_method == 'sp' or vn_method == 'ep':
@@ -834,9 +839,8 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
 
     outFile.Close()
 
-    if not batch:
-        input('Press enter to exit')
-
+    # if not batch:
+    #     input('Press enter to exit')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Arguments')
