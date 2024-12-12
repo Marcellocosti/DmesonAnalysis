@@ -67,10 +67,14 @@ def compute_frac_cut_var(config, inputdir, outputdir, suffix, batch=False):
 
         inFileEff = TFile.Open(inFileNameEff)
         
+        print(f"histoNameEffPrompt: {histoNameEffPrompt}")
+        print(f"histoNameEffFD: {histoNameEffFD}")
         hEffPrompt.append(inFileEff.Get(histoNameEffPrompt))
         hEffFD.append(inFileEff.Get(histoNameEffFD))
         hEffPrompt[-1].SetDirectory(0)
+        print(f"hEffPrompt[-1].Integral(): {hEffPrompt[-1].Integral()}")
         hEffFD[-1].SetDirectory(0)
+        print(f"hEffFD[-1].Integral(): {hEffFD[-1].Integral()}")
 
     # create output histograms
     hCorrYieldPrompt = hRawYields[0].Clone('hCorrYieldPrompt')
@@ -164,6 +168,7 @@ def compute_frac_cut_var(config, inputdir, outputdir, suffix, batch=False):
                 listEffFD = ApplyVariationToList(listEffFD, relEffVariation, effVariationOpt)
 
         print(f'Pt: {ptMin:.1f}-{ptMax:.1f}')
+        print(f'len(listEffPrompt): {len(listEffPrompt)}')
         for i in range(len(listEffPrompt)):
             print(f'Eff Prompt: {listEffPrompt[i]:.3f}    Eff FD: {listEffFD[i]:.3f}    Raw Yield: {listRawYield[i]:.2f}')
 
