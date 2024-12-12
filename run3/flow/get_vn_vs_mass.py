@@ -9,14 +9,31 @@ import argparse
 import ctypes
 import numpy as np
 import yaml
+import os
 from ROOT import TLatex, TFile, TCanvas, TLegend, TH1D, TH1F, TDatabasePDG, TGraphAsymmErrors # pylint: disable=import-error,no-name-in-module
 from ROOT import gROOT, gPad, gInterpreter, kBlack, kRed, kAzure, kGray, kOrange, kGreen, kMagenta, kFullCircle, kFullSquare, kOpenCircle # pylint: disable=import-error,no-name-in-module
 from flow_analysis_utils import get_centrality_bins, get_vnfitter_results, get_ep_vn, getD0ReflHistos, get_particle_info # pylint: disable=import-error,no-name-in-module
 sys.path.append('../../..')
 sys.path.append('../..')
-gInterpreter.ProcessLine(f'#include "./invmassfitter/InvMassFitter.cxx"')
-gInterpreter.ProcessLine(f'#include "./invmassfitter/VnVsMassFitter.cxx"')
+print('ATTEMPTING TO PROCESS FITTER FILES')
+# try:
+#     gInterpreter.ProcessLine('#include "./invmassfitter/InvMassFitter.cxx"')
+#     print("Successfully included InvMassFitter.cxx from ./invmassfitter/")
+# except Exception as e:
+#     print(f"Failed to include from ./invmassfitter/: {e}. Trying alternative path...")
+#     try:
+#         gInterpreter.ProcessLine('#include "../invmassfitter/InvMassFitter.cxx"')
+#         print("Successfully included InvMassFitter.cxx from ../invmassfitter/")
+#     except Exception as e:
+#         print(f"Failed to include from ../invmassfitter/ as well: {e}")
+#         raise ImportError("Could not include InvMassFitter.cxx from any known path.")
+gInterpreter.ProcessLine(f'#include "{os.getenv("DMESONANALYSIS")}/run3/flow/invmassfitter/InvMassFitter.cxx"')
+gInterpreter.ProcessLine(f'#include "{os.getenv("DMESONANALYSIS")}/run3/flow/invmassfitter/VnVsMassFitter.cxx"')
 from ROOT import InvMassFitter, VnVsMassFitter
+utils_directory = f'{os.getenv("DMESONANALYSIS")}'
+# utils_directory = f'{os.getenv("DMESONANALYSIS")}/utils'
+sys.path.append(utils_directory)
+# sys.path.append("/home/mdicosta/alice/DmesonAnalysis/utils/StyleFormatter.py")
 from utils.StyleFormatter import SetGlobalStyle, SetObjectStyle, DivideCanvas
 from utils.FitUtils import SingleGaus, DoubleGaus, DoublePeakSingleGaus, DoublePeakDoubleGaus, RebinHisto
 from kde_producer import kde_producer

@@ -784,6 +784,9 @@ def ApplyVariationToList(listToVary, relVar, option='decreasing'):
     ----------
     - listVaried: list of varied values
     '''
+    print(f"listToVary: {listToVary}")
+    print(f"relVar: {relVar}")
+    print(f"option: {option}")
     if option not in ['upshift', 'downshift', 'decreasing', 'increasing']:
         print('ERROR: option for variation of list not valid! Returning None')
         return None

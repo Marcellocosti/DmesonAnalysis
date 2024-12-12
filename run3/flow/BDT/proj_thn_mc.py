@@ -29,8 +29,8 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
     if not isinstance(inputFiles, list):
         inputFiles = [inputFiles]
     particleName = config['Dmeson']
-    enableRef = config['enableRef']
-    enableSecPeak = config['enableSecPeak']
+    enableRef = True if config.get('enableRef') else False
+    enableSecPeak = True if config.get('enableSecPeak') else False
     ptweights = [config['ptweightPath'], config['ptweightName']]
     ptweightsB = [config['ptweightBPath'], config['ptweightBName']]
     Bspeciesweights = config['Bspeciesweights'] if 'Bspeciesweights' in config else None
@@ -47,12 +47,13 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
     if Bspeciesweights == None:
         print('\033[91m WARNING: B species weights will not be provided! \033[0m')
 
+    
     # load thnsparse
     for iFile, inputFile in enumerate(inputFiles):
         if iFile == 0:
-            sparseReco, sparseGen = LoadSparseFromTask(inputFile, config, True)
+            sparseReco, sparseGen = LoadSparseFromTask(inputFile, config, particleName, True)
         else:
-            sparseRecoPart, sparseGenPart = LoadSparseFromTask(inputFile, config, True)
+            sparseRecoPart, sparseGenPart = LoadSparseFromTask(inputFile, config, particleName, True)
             for sparsetype in sparseRecoPart:
                 sparseReco[sparsetype].Add(sparseRecoPart[sparsetype])
             for sparsetype in sparseGenPart:

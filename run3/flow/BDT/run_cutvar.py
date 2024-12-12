@@ -13,7 +13,7 @@ def check_dir(dir):
 		print(f"\033[32m{dir} does not exist, it will be created\033[0m")
 		os.makedirs(dir)
 	else:
-		print(f"\033[33m{dir} already exists, it will be removed and recreat\033[0m")
+		print(f"\033[33m{dir} already exists, it will be removed and recreated\033[0m")
 		shutil.rmtree(dir)
 		os.makedirs(dir)
 
@@ -55,7 +55,7 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 #___________________________________________________________________________________________________________________________
 	# make yaml file
 	if not skip_make_yaml:
-		check_dir(f"{output_dir}/config")
+		check_dir(f"{output_dir}config")
 		MakeyamlPath = './make_yaml_for_ml.py'
 
 		print(f"\033[32mpython3 {MakeyamlPath} {config_flow} -o {output_dir} -s {suffix}\033[0m")
@@ -67,7 +67,7 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 #___________________________________________________________________________________________________________________________
 	# Cut variation (aply the cut and project)
 	if not skip_cut_variation:
-		check_dir(f"{output_dir}/proj")
+		check_dir(f"{output_dir}proj")
 		CutVarPath = "./cut_variation.py"
 
 		print(f"\033[32mpython3 {CutVarPath} {config_flow} {anres_dir} -c {cent} -r {res_file} -o {output_dir} -s {suffix}\033[0m")
@@ -78,7 +78,7 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 #___________________________________________________________________________________________________________________________
 	# Projection for MC and apply the ptweights
 	if not skip_proj_mc:
-		check_dir(f"{output_dir}/proj_mc")
+		check_dir(f"{output_dir}proj_mc")
 		ProjMcPath = "./proj_thn_mc.py"
 
 		for i in range(nCutSets):
@@ -91,7 +91,7 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 #___________________________________________________________________________________________________________________________
 	# Compute the efficiency
 	if not skip_efficiency:
-		check_dir(f"{output_dir}/eff")
+		check_dir(f"{output_dir}eff")
 		EffPath = "./../compute_efficiency.py"
 
 		for i in range(nCutSets):
@@ -105,7 +105,7 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 #___________________________________________________________________________________________________________________________
 	# do the simulation fit to get the raw yields
 	if not skip_vn:
-		check_dir(f"{output_dir}/ry")
+		check_dir(f"{output_dir}ry")
 		SimFitPath = "./../get_vn_vs_mass.py"
 
 		for i in range(nCutSets):
@@ -119,7 +119,7 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 #___________________________________________________________________________________________________________________________
 	# Compute the fraction by cut variation method
 	if not skip_frac_cut_var:
-		check_dir(f"{output_dir}/CutVarFrac")
+		check_dir(f"{output_dir}CutVarFrac")
 		CurVarFracPath = "./compute_frac_cut_var.py"
 
 		print(f"\033[32mpython3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix}\033[0m")
@@ -130,7 +130,7 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 #___________________________________________________________________________________________________________________________
 	# Compute fraction by Data-driven method
 	if not skip_data_driven_frac:
-		check_dir(f"{output_dir}/DataDrivenFrac")
+		check_dir(f"{output_dir}DataDrivenFrac")
 		DataDrivenFracPath = "./ComputeDataDriFrac_flow.py"
 
 		print(f"\033[32mpython3 {DataDrivenFracPath} -i {output_dir} -o {output_dir} -s {suffix}\033[0m")
@@ -141,7 +141,7 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 #___________________________________________________________________________________________________________________________
 	# Compute v2 vs fraction
 	if not skip_v2_vs_frac:
-		check_dir(f"{output_dir}/V2VsFrac")
+		check_dir(f"{output_dir}V2VsFrac")
 		v2vsFDFracPath = "./ComputeV2vsFDFrac.py"
 
 		print(f"\033[32mpython3 {v2vsFDFracPath} {config_flow} -i {output_dir} -o {output_dir} -s {suffix}\033[0m")
@@ -171,6 +171,7 @@ if __name__ == "__main__":
 	parser.add_argument("--skip_v2_vs_frac", "-sv2fd", action="store_true", help="skip v2 vs FD fraction")
 	args = parser.parse_args()
 
+	print(f"args.centrality: {args.centrality}")
 	run_full_cut_variation(args.flow_config, args.anres_dir, args.centrality, args.resolution, args.outputdir, args.suffix, args.vn_method, 
 						args.skip_make_yaml, 
 						args.skip_cut_variation, 

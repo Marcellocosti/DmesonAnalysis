@@ -18,26 +18,37 @@ SetGlobalStyle(titleoffsety=1.1, maxdigits=3, topmargin=0.1,
                setdecimals=True, titleoffsetx=0.91, titlesizex=0.05)
 
 def check_cent_sel(charm_hadron, centclass, infile):
+    print('CIAO')
     if charm_hadron in ['Dplus', 'Ds']:
+        print('CIAO1')
+        print(infile.GetName())
         cent_hist = infile.Get('hf-candidate-creator-3prong/hSelCollisionsCent')
+        print(f"cent_hist.GetNbinsX(): {cent_hist.GetNbinsX()}")
         _, centMinMax = get_centrality_bins(centclass)
-        for i in range(cent_hist.GetNbinsX()):
-            if not (cent_hist.GetBinContent(centMinMax[0] + 1) > 0 \
-                and cent_hist.GetBinContent(centMinMax[0]) == 0 \
-                and cent_hist.GetBinContent(centMinMax[1]) > 0 \
-                and cent_hist.GetBinContent(centMinMax[1] + 1) == 0):
-                print(f'\033[91mFATAL: Invalid centrality class: {centclass}. Exit!\033[0m')
-                sys.exit(1)
+        print(f'CENTMINMAX: {centMinMax}')
+        print(f'cent_hist.GetNbinsX(): {cent_hist.GetNbinsX()}')
+        # for i in range(cent_hist.GetNbinsX()):
+        print("---------------")
+        print(f"cent_hist.GetBinContent(centMinMax[0] + 1): {cent_hist.GetBinContent(centMinMax[0] + 1)}")
+        print(f"cent_hist.GetBinContent(centMinMax[0]): {cent_hist.GetBinContent(centMinMax[0])}")
+        print(f"cent_hist.GetBinContent(centMinMax[1]) > 0: {cent_hist.GetBinContent(centMinMax[1]) > 0}")
+        print(f"cent_hist.GetBinContent(centMinMax[1] + 1): {cent_hist.GetBinContent(centMinMax[1] + 1)}")
+        if not (cent_hist.GetBinContent(centMinMax[0] + 1) > 0 \
+            and cent_hist.GetBinContent(centMinMax[0]) == 0 \
+            and cent_hist.GetBinContent(centMinMax[1]) > 0 \
+            and cent_hist.GetBinContent(centMinMax[1] + 1) == 0):
+            print(f'\033[91mFATAL: Invalid centrality class: {centclass}. Exit!\033[0m')
+            sys.exit(1)
     elif charm_hadron == 'Dzero':
         cent_hist = infile.Get('hf-candidate-creator-2prong/hSelCollisionsCent')
         _, centMinMax = get_centrality_bins(centclass)
-        for i in range(cent_hist.GetNbinsX()):
-            if not (cent_hist.GetBinContent(centMinMax[0] + 1) > 0 \
-                    and cent_hist.GetBinContent(centMinMax[0]) == 0 \
-                    and cent_hist.GetBinContent(centMinMax[1]) > 0 \
-                    and cent_hist.GetBinContent(centMinMax[1] + 1) == 0):
-                print(f'\033[91mFATAL: Invalid centrality class: {centclass}. Exit!\033[0m')
-                sys.exit(1)
+        # for i in range(cent_hist.GetNbinsX()):
+        if not (cent_hist.GetBinContent(centMinMax[0] + 1) > 0 \
+                and cent_hist.GetBinContent(centMinMax[0]) == 0 \
+                and cent_hist.GetBinContent(centMinMax[1]) > 0 \
+                and cent_hist.GetBinContent(centMinMax[1] + 1) == 0):
+            print(f'\033[91mFATAL: Invalid centrality class: {centclass}. Exit!\033[0m')
+            sys.exit(1)
     else:
         print('\033[93mWARNING: Invalid charm hadron for centrality check.\033[0m')
 

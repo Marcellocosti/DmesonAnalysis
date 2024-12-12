@@ -11,6 +11,7 @@ import sys
 from alive_progress import alive_bar
 sys.path.append('..')
 from flow_analysis_utils import get_vn_versus_mass, get_centrality_bins, get_cut_sets
+from ROOT import TH1F
 
 def cut_var(config, an_res_file, centrality, resolution, outputdir, suffix):
     with open(config, 'r') as ymlCfgFile:
@@ -38,10 +39,16 @@ def cut_var(config, an_res_file, centrality, resolution, outputdir, suffix):
 
     # get resolution
     resoFile = ROOT.TFile(resolution, 'READ')
-    histo_reso = resoFile.Get(f'{det_A}_{det_B}_{det_C}/histo_reso')
-    histo_reso.SetName('hist_reso')
-    histo_reso.SetDirectory(0)
-    reso = histo_reso.GetBinContent(1)
+    try:
+        histo_reso = resoFile.Get(f'{det_A}_{det_B}_{det_C}/histo_reso')
+        histo_reso.SetName('hist_reso')
+        histo_reso.SetDirectory(0)
+        reso = histo_reso.GetBinContent(1)
+    except:
+        histo_reso = resoFile.Get(f'hf-task-flow-charm-hadrons/spReso/hSpReso{det_B}{det_C}')
+        histo_reso.SetName('hist_reso')
+        histo_reso.SetDirectory(0)
+        reso = histo_reso.GetBinContent(1)
 
     infile = ROOT.TFile(an_res_file, 'READ')
     thnsparse = infile.Get('hf-task-flow-charm-hadrons/hSparseFlowCharm')
@@ -75,13 +82,18 @@ def cut_var(config, an_res_file, centrality, resolution, outputdir, suffix):
         
                 # apply the cuts
                 inv_mass_bin = inv_mass_bins[ipt]
+                print(f'DIMENSIONS: {thnsparse_selcent.GetNdimensions()}')
+                print(f'type(thnsparse_selcent): {type(thnsparse_selcent)}')
+                print(f'axis_pt: {axis_pt}')
+                print(f'axis_bdt_bkg: {axis_bdt_bkg}')
+                print(f'axis_bdt_sig: {axis_bdt_sig}')
                 thnsparse_selcent.GetAxis(axis_pt).SetRangeUser(pt_min, pt_max)
                 thnsparse_selcent.GetAxis(axis_bdt_bkg).SetRangeUser(bkg_cut_lower[ipt][iCut], bkg_cut_upper[ipt][iCut])
                 thnsparse_selcent.GetAxis(axis_bdt_sig).SetRangeUser(sig_cut_lower[ipt][iCut], sig_cut_upper[ipt][iCut])
                 print(f'''pT range: {pt_min} - {pt_max};
-bkg BDT cut: {bkg_cut_lower[ipt][iCut]} - {bkg_cut_upper[ipt][iCut]};
-sig BDT cut: {sig_cut_lower[ipt][iCut]} - {sig_cut_upper[ipt][iCut]}
-''')
+                      bkg BDT cut: {bkg_cut_lower[ipt][iCut]} - {bkg_cut_upper[ipt][iCut]};
+                      sig BDT cut: {sig_cut_lower[ipt][iCut]} - {sig_cut_upper[ipt][iCut]}
+                      ''')
 
                 # project the mass
                 hist_mass = thnsparse_selcent.Projection(axis_mass)
