@@ -18,41 +18,23 @@ SetGlobalStyle(titleoffsety=1.1, maxdigits=3, topmargin=0.1,
                setdecimals=True, titleoffsetx=0.91, titlesizex=0.05)
 
 def check_cent_sel(charm_hadron, centclass, infile):
-    print('CIAO')
-    if charm_hadron in ['Dplus', 'Ds']:
-        print('CIAO1')
-        print(infile.GetName())
-        cent_hist = infile.Get('hf-candidate-creator-3prong/hSelCollisionsCent')
-        print(f"cent_hist.GetNbinsX(): {cent_hist.GetNbinsX()}")
-        _, centMinMax = get_centrality_bins(centclass)
-        print(f'CENTMINMAX: {centMinMax}')
-        print(f'cent_hist.GetNbinsX(): {cent_hist.GetNbinsX()}')
-        # for i in range(cent_hist.GetNbinsX()):
-        print("---------------")
-        print(f"cent_hist.GetBinContent(centMinMax[0] + 1): {cent_hist.GetBinContent(centMinMax[0] + 1)}")
-        print(f"cent_hist.GetBinContent(centMinMax[0]): {cent_hist.GetBinContent(centMinMax[0])}")
-        print(f"cent_hist.GetBinContent(centMinMax[1]) > 0: {cent_hist.GetBinContent(centMinMax[1]) > 0}")
-        print(f"cent_hist.GetBinContent(centMinMax[1] + 1): {cent_hist.GetBinContent(centMinMax[1] + 1)}")
-        if not (cent_hist.GetBinContent(centMinMax[0] + 1) > 0 \
-            and cent_hist.GetBinContent(centMinMax[0]) == 0 \
-            and cent_hist.GetBinContent(centMinMax[1]) > 0 \
-            and cent_hist.GetBinContent(centMinMax[1] + 1) == 0):
-            print(f'\033[91mFATAL: Invalid centrality class: {centclass}. Exit!\033[0m')
-            sys.exit(1)
-    elif charm_hadron == 'Dzero':
-        cent_hist = infile.Get('hf-candidate-creator-2prong/hSelCollisionsCent')
-        _, centMinMax = get_centrality_bins(centclass)
-        # for i in range(cent_hist.GetNbinsX()):
-        if not (cent_hist.GetBinContent(centMinMax[0] + 1) > 0 \
-                and cent_hist.GetBinContent(centMinMax[0]) == 0 \
-                and cent_hist.GetBinContent(centMinMax[1]) > 0 \
-                and cent_hist.GetBinContent(centMinMax[1] + 1) == 0):
-            print(f'\033[91mFATAL: Invalid centrality class: {centclass}. Exit!\033[0m')
-            sys.exit(1)
+    nprongs = 2 if charm_hadron == 'Dzero' else 3
+    infile.cd(f'hf-candidate-creator-{nprongs}prong')
+    cent_hist = infile.Get(f'hf-candidate-creator-{nprongs}prong/hSelCollisionsCent')
+    infile.Get(f'hf-candidate-creator-{nprongs}prong/hSelCollisionsCent').Copy(cent_hist)
+    _, centMinMax = get_centrality_bins(centclass)
+    if cent_hist.GetBinContent(centMinMax[0] + 1) == 0:
+        print(f'\033[93mWARNING: First bin of the selected centrality class is empty!\033[0m')
+    if cent_hist.GetBinContent(centMinMax[0]) != 0:
+        print(f'\033[93mWARNING: Filled bins for cent < {centMinMax[0]}!\033[0m')
+    if cent_hist.GetBinContent(centMinMax[1]) == 0:
+        print(f'\033[93mWARNING: Last bin of the selected centrality class is not filled!\033[0m')
+    if cent_hist.GetBinContent(centMinMax[1] + 1) != 0:
+        print(f'\033[93mWARNING: Filled bins for cent > {centMinMax[1]}!\033[0m')
     else:
         print('\033[93mWARNING: Invalid charm hadron for centrality check.\033[0m')
 
-def compute_eff(config_file, centclass, inputFile, outputdir, suffix):
+def compute_eff(config_file, centclass, outputdir, suffix):
     '''
     Compute efficiency for prompt and feed-down D mesons
 
@@ -218,7 +200,7 @@ def compute_eff_thns(config_file, centclass, inputFile, outputdir, suffix, batch
     #_____________________________________________________________________________________
     # Compute efficiency
     for iPt, (ptMin, ptMax) in enumerate(zip(ptMins, ptMaxs)):
-        ## get inpput histograms
+        ## get input histograms
         ## whether need to minus reflection from prompt or FD?
         hRecoPrompt.append(infile.Get('hPromptPt_%0.f_%0.f' % (ptMin*10, ptMax*10)))
         hRecoFD.append(infile.Get('hFDPt_%0.f_%0.f' % (ptMin*10, ptMax*10)))

@@ -7,7 +7,7 @@ from ROOT import TFile, TAxis, THnSparseF, TH2F  # pylint: disable=import-error,
 import numpy as np
 
 # pylint: disable=too-many-branches,too-many-statements, too-many-return-statements
-def LoadSparseFromTask(infilename, inputCfg, particleName, no_List_isMC=False):
+def LoadSparseFromTask(infilename, inputCfg, no_List_isMC=False):
     '''
     Method to retrieve sparses from output task file
 
@@ -52,7 +52,6 @@ def LoadSparseFromTask(infilename, inputCfg, particleName, no_List_isMC=False):
             print(f'ERROR: sparse {inputCfg["sparsenameAll"]} not found!')
             return None, None
     if isMC:
-            
         if ((inputCfg['sparsenamePrompt'] is not None and inputCfg['sparsenameAll'] == inputCfg['sparsenamePrompt']) or
                 (inputCfg['sparsenameFD'] is not None and inputCfg['sparsenameAll'] == inputCfg['sparsenameFD'])):
             print('ERROR: do not use the same object for different sparses, this gives an error when merged! Exit')
@@ -74,63 +73,24 @@ def LoadSparseFromTask(infilename, inputCfg, particleName, no_List_isMC=False):
             if not sparses['RecoFD']:
                 print(f'ERROR: sparse {inputCfg["sparsenameFD"]} not found!')
                 return None, None
-        if particleName == "Dplus":
-            print("GETTING TH2s FOR DPLUS")
-            if not no_List_isMC:
-                print("LIST")
-                print(f"type(inlistData): {type(inlistData)}")
-                GenPromptTh2 = inlistData.FindObject(inputCfg['TH2nameGenPrompt'])
-                GenFDTh2 = inlistData.FindObject(inputCfg['TH2nameGenFD'])
-                sparsesGen['GenPrompt'] = GetSparseFromTH2(GenPromptTh2)
-                sparsesGen['GenFD'] = GetSparseFromTH2(GenFDTh2)
-            else:
-                print("NO LIST")
-                # print(f"type(indirData): {type(indirData)}")
-                # GenPromptTh2 = TH2F()
-                # obj = indirData.Get('hPt')
-                # print(f"type(obj): {type(obj)}")
-                # obj.Copy(GenPromptTh2)
-                # indirData.FindObject('hPt').Copy(GenPromptTh2)
-                # indirData.FindObject('hPt').Copy(GenPromptTh2)
-                GenPromptTh2 = indirData.Get(inputCfg['TH2nameGenPrompt'])
-                GenFDTh2 = indirData.Get(inputCfg['TH2nameGenFD'])
-                # print(f"type(GenPromptTh2): {type(GenPromptTh2)}")
-                # print(f"inputCfg['TH2nameGenPrompt']: {inputCfg['TH2nameGenPrompt']}")
-                # print(f"inputCfg['TH2nameGenFD']: {inputCfg['TH2nameGenFD']}")
-                # GenFDTh2 = TH2F() 
-                # indirData.FindObject(inputCfg['TH2nameGenFD']).Copy(GenFDTh2)
-                # print(f"type(GenFDTh2): {type(GenFDTh2)}")
-                # print(f"indirData.GetListOfKeys(): {indirData.GetListOfKeys()}")
-                # print(f"indirData.ls(): {indirData.ls()}")
-                sparsesGen['GenPrompt'] = GetSparseFromTH2(GenPromptTh2)
-                sparsesGen['GenFD'] = GetSparseFromTH2(GenFDTh2)
-                # sparsesGen['GenPrompt'] = indirData.Get(inputCfg['TH2nameGenPrompt'])
-                # sparsesGen['GenPrompt'].SetName("TH2GenPrompt")
-                # sparsesGen['GenFD'] = indirData.Get(inputCfg['TH2nameGenFD'])
-                # sparsesGen['GenFD'].SetName("TH2GenFD")
-            
-            print('DONEEEE')
-            print(f"type(sparsesGen['GenPrompt']): {type(sparsesGen['GenPrompt'])}")
-            print(f"type(sparsesGen['GenFD']): {type(sparsesGen['GenFD'])}")
-        else: 
-            if not no_List_isMC:
-                sparsesGen['GenPrompt'] = inlistData.FindObject(inputCfg['sparsenameGenPrompt'])
-            else:
-                sparsesGen['GenPrompt'] = indirData.Get(inputCfg['sparsenameGenPrompt'])
-                sparsesGen['GenPrompt'].SetName("SparseGenPrompt")
-            if not sparsesGen['GenPrompt']:
-                print(f'ERROR: sparse {inputCfg["sparsenameGenPrompt"]} not found!')
-                return None, None
-            if not no_List_isMC:
-                sparsesGen['GenFD'] = inlistData.FindObject(inputCfg['sparsenameGenFD'])
-            else:
-                sparsesGen['GenFD'] = sparsesGen['GenPrompt'].Clone('SparseGenFD')
-            if not sparsesGen['GenFD']:
-                print(f'ERROR: sparse {inputCfg["sparsenameGenFD"]} not found!')
-                return None, None
+        if not no_List_isMC:
+            sparsesGen['GenPrompt'] = inlistData.FindObject(inputCfg['sparsenameGenPrompt'])
+        else:
+            sparsesGen['GenPrompt'] = indirData.Get(inputCfg['sparsenameGenPrompt'])
+            sparsesGen['GenPrompt'].SetName("SparseGenPrompt")
+        if not sparsesGen['GenPrompt']:
+            print(f'ERROR: sparse {inputCfg["sparsenameGenPrompt"]} not found!')
+            return None, None
+        if not no_List_isMC:
+            sparsesGen['GenFD'] = inlistData.FindObject(inputCfg['sparsenameGenFD'])
+        else:
+            sparsesGen['GenFD'] = sparsesGen['GenPrompt'].Clone('SparseGenFD')
+        if not sparsesGen['GenFD']:
+            print(f'ERROR: sparse {inputCfg["sparsenameGenFD"]} not found!')
+            return None, None
         
         # For D0, the reflection and reconstruction are in the same sparse
-        if inputCfg.get('enableRef'):
+        if inputCfg['enableRef']:
             if inputCfg['sparsenameRefl'] is not None:
                 if not no_List_isMC:
                     sparses['RecoRefl'] = inlistData.FindObject(inputCfg['sparsenameRefl'])
@@ -143,7 +103,7 @@ def LoadSparseFromTask(infilename, inputCfg, particleName, no_List_isMC=False):
                 print(f'ERROR: sparse {inputCfg["sparsenameRefl"]} not found!')
                 return None, None
 
-        if inputCfg.get('enableSecPeak'):
+        if inputCfg['enableSecPeak']:
             if inputCfg['sparsenamePromptSecPeak'] is not None:
                 if not no_List_isMC:
                     sparses['RecoSecPeakPrompt'] = inlistData.FindObject(inputCfg['sparsenamePromptSecPeak'])
@@ -175,6 +135,58 @@ def LoadSparseFromTask(infilename, inputCfg, particleName, no_List_isMC=False):
                 print(f'ERROR: sparse {inputCfg["sparsenameGenFDSecPeak"]} not found!')
                 return None, None
     infileData.Close()
+
+    return sparses, sparsesGen
+
+# pylint: disable=too-many-branches,too-many-statements, too-many-return-statements
+def LoadSparseFromTaskHard(infile, inputCfg):
+    '''
+    Method to retrieve sparses from output task file
+
+    Inputs
+    ----------
+    - input root file name
+    - config dictionary from yaml file with name of objects in root file
+    - flag to whether load 'isMC' and list from config
+        - if True, load sparses for MC and no list
+        - if False, load 'isMC' from config and load sparse from list
+        - default is False
+
+    Returns
+    ----------
+    - list of sparses with reconstructed quantities for all candidates,
+      and prompt, FD D mesons and bkg candidates (only if MC)
+    - list of sparses with generated quantities for prompt and FD D mesons (only if MC)
+    '''
+    print('Loading THnSparses from file', infile)
+    sparses, sparsesGen = {}, {}
+    if inputCfg['Dmeson'] == 'Dzero':
+        print('D0 structure to be added')
+        indirData = infile.Get('hf-task-d0')
+        # For D0, the reflection and reconstruction are in the same sparse
+        if inputCfg.get('isMC'):
+            if inputCfg.get('enableRef'):
+                sparses['RecoRefl'] = indirData.FindObject(inputCfg['sparsenameRefl'])
+                sparses['RecoReflPrompt'] = sparses['RecoRefl'].Clone('SparseReflPrompt')
+                sparses['RecoReflFD'] = sparses['RecoRefl'].Clone('SparseReflFD')
+            if inputCfg.get('enableSecPeak'):
+                sparses['RecoSecPeakPrompt'] = indirData.FindObject(inputCfg['sparsenamePromptSecPeak'])
+                sparses['RecoSecPeakFD'] = indirData.FindObject(inputCfg['sparsenameFDSecPeak'])
+                sparsesGen['GenSecPeakPrompt'] = indirData.FindObject(inputCfg['sparsenameGenPromptSecPeak'])
+                sparsesGen['GenSecPeakFD'] = indirData.FindObject(inputCfg['sparsenameGenFDSecPeak'])
+
+    elif inputCfg['Dmeson'] == 'Dplus':
+        sparses['RecoPrompt'] = infile.Get('hf-task-dplus/hSparseMassPrompt')
+        sparses['RecoFD'] = infile.Get('hf-task-dplus/hSparseMassFD')
+        sparsesGen['GenPrompt'] = infile.Get('hf-task-dplus/hSparseMassGenPrompt')
+        sparsesGen['GenFD'] = infile.Get('hf-task-dplus/hSparseMassGenFD')
+
+    elif inputCfg['Dmeson'] == 'Ds':
+        print('Ds structure to be added')
+        indirData = infile.Get('hf-task-ds')
+    else:
+        print(f'ThNSparse loading for part {inputCfg["Dmeson"]} not implemented!')
+        return None, None
 
     return sparses, sparsesGen
 
@@ -405,70 +417,3 @@ def LoadListFromTaskV2(infilename, dirname, listname):
         return None
 
     return inlistData
-
-def GetSparseFromTH2(th2histo):
-    '''
-    Method to convert the pt vs Y TH2 histo of the D+ task
-    to a ThNSparse having 3 axes (pt, pt_B, Y), for consistency
-    with the D0 task
-
-    Inputs
-    ----------
-    - input histogram of type TH2
-
-    Returns
-    ----------
-    - ThNSparse
-    '''
-    
-    # print('CONVERTING SPARSE FROM TH2')
-    # print(f"TYPE TH2HISTO: {type(th2histo)}")
-    # axisPt = TAxis() 
-    # th2histo.GetXaxis().Copy(axisPt)
-    # axisY = TAxis() 
-    # th2histo.GetYaxis().Copy(axisY)
-    # axisPtB = TAxis(1, 0, 1)
-    # axesVector = [axisPt, axisPtB, axisY]
-    # print(f"axesVector: {axesVector}")
-    # sparseFromTh2 = THnSparseF(f"{th2histo.GetTitle()}", f"{th2histo.GetName()}", axesVector)
-    # for iptbin in axisPt.GetNbins():
-    #     ptBinCenter = axisPt.GetBinCenter(iptbin)
-    #     for iYbin in axisY.GetNbins():
-    #         YBinCenter = axisY.GetBinCenter(iYbin)
-    #         bin = sparseFromTh2.GetBin(np.as_array([ptBinCenter, 0.5, YBinCenter]), True)
-    #         sparseFromTh2.SetBinContent(th2histo.GetBinContent(iptbin, iYbin))
-    
-    # print('ENDED CONVERSION')
-    # return sparseFromTh2 
-    
-    # Get bin edges for the X and Y axes
-    n_bins_x = th2histo.GetNbinsX()
-    n_bins_y = th2histo.GetNbinsY()
-    x_edges = [th2histo.GetXaxis().GetBinLowEdge(i) for i in range(1, n_bins_x + 2)]
-    y_edges = [th2histo.GetYaxis().GetBinLowEdge(i) for i in range(1, n_bins_y + 2)]
-
-    # Create nbins, xmin, and xmax arrays
-    nbins = np.array([n_bins_x, 1, n_bins_y], dtype=np.int32)
-    xmin = np.array([min(x_edges), 0.0, min(y_edges)], dtype=np.float64)
-    xmax = np.array([max(x_edges), 1.0, max(y_edges)], dtype=np.float64)
-
-    # Define the THnSparse
-    sparse = THnSparseF(
-        th2histo.GetName(),
-        th2histo.GetTitle(),
-        3,  # Number of dimensions
-        nbins,  # Number of bins per dimension
-        xmin,  # Lower bounds
-        xmax   # Upper bounds
-    )
-
-    # Fill the sparse histogram with content from the TH2
-    for ix in range(1, n_bins_x + 1):
-        for iy in range(1, n_bins_y + 1):
-            content = th2histo.GetBinContent(ix, iy)
-            bin_center_x = th2histo.GetXaxis().GetBinCenter(ix)
-            bin_center_y = th2histo.GetYaxis().GetBinCenter(iy)
-            sparse.Fill(np.array([bin_center_x, 0.5, bin_center_y], dtype=np.float64), content)
-
-    print('ENDED CONVERSION')
-    return sparse

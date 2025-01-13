@@ -7,6 +7,7 @@ import os
 import sys
 import ctypes
 from itertools import combinations
+from itertools import product
 import numpy as np
 
 def get_vn_versus_mass(thnSparse, inv_mass_bins, mass_axis, vn_axis, debug=False):
@@ -287,6 +288,9 @@ def get_centrality_bins(centrality):
     elif centrality == 'k3050':
         print("30-50 CENTRALITY")
         return '30_50', [30, 50]
+    elif centrality == 'k2050':
+        print("20-50 CENTRALITY")
+        return '20_50', [20, 50]
     elif centrality == 'k4050':
         return '40_50', [40, 50]
     elif centrality == 'k2060':
@@ -694,7 +698,7 @@ def get_particle_info(particleName):
 
     return particleTit, massAxisTit, decay, massForFit
 
-def get_cut_sets(pt_mins, pt_maxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bkg_cut_mins=[], bkg_cut_maxs=[], bkg_cut_steps=[], correlated_cuts=True):
+def get_cut_sets(pt_mins, config, correlated_cuts=True):
     '''
     Get cut sets
 
@@ -731,22 +735,30 @@ def get_cut_sets(pt_mins, pt_maxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bk
             list of lists of floats, list of upper edge for background cuts
     '''
     nCutSets = 0
+    bkg_cut_mins = config['bkg']['min']
+    bkg_cut_maxs = config['bkg']['max']
+    bkg_cut_steps = config['bkg']['step']
+    sig_cut_mins = config['sig']['min']
+    sig_cut_maxs = config['sig']['max']
+    sig_cut_steps = config['sig']['step']
     sgn_cuts_lower, sgn_cuts_upper, bkg_cuts_lower, bkg_cuts_upper = {}, {}, {}, {}
+    sgn_cuts_upper = 1.0
+    bkg_cuts_lower = 0.
+    sels = []
     if correlated_cuts:
+        for iPt in range(len(pt_mins)):
+            # compute the signal cutsets for each pt bin
+            sgn_cuts_lower = list(np.arange(sig_cut_mins[iPt], sig_cut_maxs[iPt], sig_cut_steps[iPt]))
+            sgn_cuts_combined = [[low, sgn_cuts_upper] for low in sgn_cuts_lower]
 
-        # compute the signal cutsets for each pt bin
-        sgn_cuts_lower = [list(np.arange(sig_cut_mins[iPt], sig_cut_maxs[iPt], sig_cut_steps[iPt])) for iPt in range(len(pt_mins))]
-        sgn_cuts_upper = [[1.0 for _ in range(len(sgn_cuts_lower[0]))] for iPt in range(len(pt_mins))]
+            # bkg cuts lower edge should always be 0
+            bkg_cuts_upper = list(np.arange(bkg_cut_mins[iPt], bkg_cut_maxs[iPt], bkg_cut_steps[iPt]))
+            bkg_cuts_combined = [[bkg_cuts_lower, upp] for upp in bkg_cuts_upper]
 
-        # compute the ncutsets by the first signal cut
-        nCutSets = len(sgn_cuts_lower[0])
-
-        # bkg cuts lower edge should always be 0
-        bkg_cuts_lower = [[0. for _ in range(nCutSets)] for ipt in range(len(pt_mins))]
-        bkg_cuts_upper = [[bkg_cut_maxs[ipt] for _ in range(nCutSets)] for ipt in range(len(pt_mins))]
-
+            var_ranges = [sgn_cuts_combined, bkg_cuts_combined]   
+            sels.append(list(product(*var_ranges)))
+    
     else:
-
         # uniform step
         for iPt in range(len(pt_mins)):
 
@@ -754,19 +766,19 @@ def get_cut_sets(pt_mins, pt_maxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bk
                 print('ERROR: the first signal cut should be 0.1')
                 sys.exit(1)
 
-            sig_cut_temp = sig_cut_mins[iPt]
-            sgn_cuts_lower[iPt] = [0.03, 0.45, 0.65, 0.78, 0.9]
-            sgn_cuts_upper[iPt] = [0.43, 0.63, 0.76, 0.88, 1]
-
-            if iPt == 0:
-                # compute the ncutsets by the first signal cut
-                nCutSets = len(sgn_cuts_lower[iPt])
-
             # bkg cuts
-            bkg_cuts_lower[iPt] = [0. for _ in range(nCutSets)]
-            bkg_cuts_upper[iPt] = [bkg_cut_maxs[iPt] for _ in range(nCutSets)]
+            bkg_cuts_upper = [bkg_cut_maxs[iPt] for _ in range(nCutSets)]
+            bkg_cut_ranges = [[bkg_cuts_lower, upp] for upp in bkg_cuts_upper]
+            
+            sgn_cuts_lower = [0.03, 0.45, 0.65, 0.78, 0.9]
+            sgn_cuts_upper = [0.43, 0.63, 0.76, 0.88, 1]
+            sgn_cut_ranges = [[low, upp] for low, upp in zip(sgn_cuts_lower, sgn_cuts_upper)]
+            
+            var_ranges = [sgn_cut_ranges, bkg_cut_ranges]   
+            sels.append(list(product(*var_ranges)))
 
-    return nCutSets, sgn_cuts_lower, sgn_cuts_upper, bkg_cuts_lower, bkg_cuts_upper
+    nCutSets = len(sels[0])
+    return nCutSets, sels, ['sgn_score', 'bkg_score']
 
 def get_cut_sets_config(config):
     with open(config, 'r') as ymlCfgFile:
@@ -783,3 +795,84 @@ def get_cut_sets_config(config):
     correlated_cuts = config['minimisation']['correlated']
 
     return get_cut_sets(ptmins, ptmaxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bkg_cut_mins, bkg_cut_maxs, bkg_cut_steps, correlated_cuts)
+
+def apply_pt_weights(ptweights, ptweightsB, Bspeciesweights, sparse, varName, sPtWeights, sPtWeightsB, axisNum=0, recoOrGen='Gen'):
+    
+    if not ptweights and not ptweightsB:
+        hPrompt = sparse[f'{recoOrGen}Prompt'].Projection(axisNum)
+        hFD = sparse[f'{recoOrGen}FD'].Projection(axisNum)
+
+    if ptweights and not ptweightsB:
+        hPrompt = sparse[f'{recoOrGen}Prompt'].Projection(axisNum)
+        hFD = sparse[f'{recoOrGen}FD'].Projection(axisNum)                   
+        if recoOrGen == 'Reco':
+            for iBin in range(1, hPrompt.GetNbinsX()+1):
+                if hPrompt.GetBinContent(iBin) > 0.:
+                    relStatUnc = hPrompt.GetBinError(iBin) / hPrompt.GetBinContent(iBin)
+                    ptCent = hPrompt.GetBinCenter(iBin)
+                    hPrompt.SetBinContent(iBin, hPrompt.GetBinContent(iBin) * sPtWeights(ptCent))
+                    hPrompt.SetBinError(iBin, hPrompt.GetBinContent(iBin) * relStatUnc)
+            for iBin in range(1, hFD.GetNbinsX()+1):
+                if hFD.GetBinContent(iBin) > 0.:
+                    relStatUnc = hFD.GetBinError(iBin) / hFD.GetBinContent(iBin)
+                    ptCent = hFD.GetBinCenter(iBin)
+                    hFD.SetBinContent(iBin, hFD.GetBinContent(iBin) * sPtWeights(ptCent))
+                    hFD.SetBinError(iBin, hFD.GetBinContent(iBin) * relStatUnc) 
+
+    if ptweightsB and not Bspeciesweights:
+        hPtBvsPtD = sparse[f'{recoOrGen}FD'].Projection(2, axisNum)
+        for iPtD in range(1, hPtBvsPtD.GetXaxis().GetNbins()+1):
+            for iPtB in range(1, hPtBvsPtD.GetYaxis().GetNbins()+1):
+                ptCentB = hPtBvsPtD.GetYaxis().GetBinCenter(iPtB)
+                origContent = hPtBvsPtD.GetBinContent(iPtD, iPtB)
+                origError = hPtBvsPtD.GetBinError(iPtD, iPtB)
+                weight = 0
+                if sPtWeightsB(ptCentB) > 0:
+                    weight = sPtWeightsB(ptCentB)
+                content = origContent * weight
+                error = 0
+                if origContent > 0:
+                    error = origError / origContent * content
+                hPtBvsPtD.SetBinContent(iPtD, iPtB, content)
+                hPtBvsPtD.SetBinError(iPtD, iPtB, error)
+        hFD = hPtBvsPtD.ProjectionX(f'h{recoOrGen}FD{varName}',
+                                                        0, hPtBvsPtD.GetYaxis().GetNbins()+1, 'e')        
+
+    elif ptweightsB and Bspeciesweights:
+        hPtBvsBspecievsPtD = sparse[f'{recoOrGen}FD'].Projection(axisNum, 3, 2)
+        for iPtD in range(1, hPtBvsBspecievsPtD.GetXaxis().GetNbins()+1):
+            for iBspecie in range(1, hPtBvsBspecievsPtD.GetYaxis().GetNbins()+1):
+                for iPtB in range(1, hPtBvsBspecievsPtD.GetZaxis().GetNbins()+1):
+                    ptCentB = hPtBvsBspecievsPtD.GetZaxis().GetBinCenter(iPtB)
+                    origContent = hPtBvsBspecievsPtD.GetBinContent(iPtD, iBspecie, iPtB)
+                    origError = hPtBvsBspecievsPtD.GetBinError(iPtD, iBspecie, iPtB)
+                    weight = Bspeciesweights[iBspecie-1]
+                    if sPtWeightsB(ptCentB) > 0:
+                        weight *= sPtWeightsB(ptCentB)
+                    content = origContent * weight
+                    error = 0
+                    if origContent > 0:
+                        error = origError / origContent * content
+                    hPtBvsBspecievsPtD.SetBinContent(iPtD, iBspecie, iPtB, content)
+                    hPtBvsBspecievsPtD.SetBinError(iPtD, iBspecie, iPtB, error)
+        hFD = hPtBvsBspecievsPtD.ProjectionX(f'h{recoOrGen}FD{varName}',
+                                                0, hPtBvsBspecievsPtD.GetYaxis().GetNbins()+1,
+                                                0, hPtBvsBspecievsPtD.GetZaxis().GetNbins()+1, 'e')
+
+    elif Bspeciesweights:
+        hBspecievsPtD = sparse[f'{recoOrGen}FD'].Projection(3, axisNum)
+        for iPtD in range(1, hBspecievsPtD.GetXaxis().GetNbins()+1):
+            for iBspecie in range(1, hBspecievsPtD.GetYaxis().GetNbins()+1):
+                origContent = hBspecievsPtD.GetBinContent(iPtD, iBspecie)
+                origError = hBspecievsPtD.GetBinError(iPtD, iBspecie)
+                weight = Bspeciesweights[iBspecie-1]
+                content = origContent * weight
+                error = 0
+                if origContent > 0:
+                    error = origError / origContent * content
+                hBspecievsPtD.SetBinContent(iPtD, iBspecie, content)
+                hBspecievsPtD.SetBinError(iPtD, iBspecie, error)
+        hFD = hBspecievsPtD.ProjectionX(f'hFD{varName}',
+                                        0, hBspecievsPtD.GetYaxis().GetNbins()+1, 'e')
+        
+    return hPrompt, hFD
