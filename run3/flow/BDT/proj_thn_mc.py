@@ -13,11 +13,9 @@ import os
 from ROOT import gROOT
 from alive_progress import alive_bar
 from scipy.interpolate import InterpolatedUnivariateSpline
-### please fill your path of DmeasonAnalysis
+### please fill your path of DmesonAnalysis
 sys.path.append('../../..')
 from utils.TaskFileLoader import LoadSparseFromTask
-
-
 
 def proj_MC(config, cutsetConfig, outputdir, suffix):
 
@@ -29,8 +27,8 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
     if not isinstance(inputFiles, list):
         inputFiles = [inputFiles]
     particleName = config['Dmeson']
-    enableRef = True if config.get('enableRef') else False
-    enableSecPeak = True if config.get('enableSecPeak') else False
+    enableRef = config.get('enableRef')
+    enableSecPeak = config.get('enableSecPeak')
     ptweights = [config['ptweightPath'], config['ptweightName']]
     ptweightsB = [config['ptweightBPath'], config['ptweightBName']]
     Bspeciesweights = config['Bspeciesweights'] if 'Bspeciesweights' in config else None
@@ -47,13 +45,17 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
     if Bspeciesweights == None:
         print('\033[91m WARNING: B species weights will not be provided! \033[0m')
 
-    
     # load thnsparse
+    print(f"inputFiles: {inputFiles}")
     for iFile, inputFile in enumerate(inputFiles):
         if iFile == 0:
-            sparseReco, sparseGen = LoadSparseFromTask(inputFile, config, particleName, True)
+            sparseReco, sparseGen = LoadSparseFromTask(inputFile, config)
+            print(f"sparseReco: {sparseReco}")
+            print(f"sparseGen: {sparseGen}")
         else:
-            sparseRecoPart, sparseGenPart = LoadSparseFromTask(inputFile, config, particleName, True)
+            sparseRecoPart, sparseGenPart = LoadSparseFromTask(inputFile, config)
+            print(f"sparseRecoPart: {sparseRecoPart}")
+            print(f"sparseGenPart: {sparseGenPart}")
             for sparsetype in sparseRecoPart:
                 sparseReco[sparsetype].Add(sparseRecoPart[sparsetype])
             for sparsetype in sparseGenPart:
@@ -61,6 +63,7 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
 
     refSparse = 'RecoPrompt'
 
+    print(f"pt_weights")
     # compute the pt weights
     if ptweights:
         ptWeights = uproot.open(ptweights[0])[ptweights[1]]
@@ -77,6 +80,7 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
     with open(cutsetConfig, 'r') as ymlCutSetFile:
         cutSetCfg = yaml.load(ymlCutSetFile, yaml.FullLoader)
     cutVars = cutSetCfg['cutvars']
+    print(f"cutVars: {cutVars}")
 
     # dictionaris of TH1
     all_dict = {'InvMass': [], 'Pt': []}
@@ -95,7 +99,9 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
     outfile = ROOT.TFile(f'{outputdir}/proj_mc/proj_mc_{suffix}.root', 'recreate')
 
     with alive_bar(len(cutVars['Pt']['min']), title='Processing pT bins') as bar:
+        print('CIAO ALIVE')
         for iPt, (ptMin, ptMax) in enumerate(zip(cutVars['Pt']['min'], cutVars['Pt']['max'])):
+            print('CIAO ALIVE INSIDE')
             print(f'Projecting distributions for {ptMin:.1f} < pT < {ptMax:.1f} GeV/c')
             ptLowLabel = ptMin * 10
             ptHighLabel = ptMax * 10
@@ -105,15 +111,8 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
             for iVar in cutVars:
                 if iVar == 'InvMass':
                     continue
-                axisNum = cutVars[iVar]['axisnum']
-                binMin = sparseReco[refSparse].GetAxis(axisNum).FindBin(cutVars[iVar]['min'][iPt] * 1.0001)
-                binMax = sparseReco[refSparse].GetAxis(axisNum).FindBin(cutVars[iVar]['max'][iPt] * 0.9999)
-
                 if iVar == 'ML_output_FD' or iVar == 'ML_output_Bkg':
                     print(f'{iVar}: {cutVars[iVar]["min"][iPt]} < {iVar} < {cutVars[iVar]["max"][iPt]}')
-
-                if 'RecoAll' in sparseReco:
-                    sparseReco['RecoAll'].GetAxis(axisNum).SetRange(binMin, binMax)
 
                 if particleName == 'Dzero':
                     sparseReco['RecoPrompt'].GetAxis(6).SetRange(2, 2) # make sure it is prompt
@@ -121,8 +120,17 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
                     sparseReco['RecoPrompt'].GetAxis(8).SetRange(1, 2)  # make sure it is signal
                     sparseReco['RecoFD'].GetAxis(8).SetRange(1, 2)  # make sure it is signal
                 #TODO: add other particles
+
+                axisNum = cutVars[iVar]['axisnum']
+                binMin = sparseReco[refSparse].GetAxis(axisNum).FindBin(cutVars[iVar]['min'][iPt] * 1.0001)
+                binMax = sparseReco[refSparse].GetAxis(axisNum).FindBin(cutVars[iVar]['max'][iPt] * 0.9999)
+                if 'RecoAll' in sparseReco:
+                    sparseReco['RecoAll'].GetAxis(axisNum).SetRange(binMin, binMax)
+                    print(f"sparseReco['RecoAll'].Projection(axisNum).Integral(): {sparseReco['RecoAll'].Projection(axisNum).Integral()}")
                 sparseReco['RecoPrompt'].GetAxis(axisNum).SetRange(binMin, binMax)
+                print(f"sparseReco['RecoPrompt'].Projection(axisNum).Integral(): {sparseReco['RecoPrompt'].Projection(axisNum).Integral()}")
                 sparseReco['RecoFD'].GetAxis(axisNum).SetRange(binMin, binMax)
+                print(f"sparseReco['RecoFD'].Projection(axisNum).Integral(): {sparseReco['RecoFD'].Projection(axisNum).Integral()}")
 
                 if enableRef:
                     sparseReco['RecoRefl'].GetAxis(8).SetRange(3, 4)  # make sure it is reflection
@@ -138,8 +146,10 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
                     sparseReco['RecoSecPeakPrompt'].GetAxis(axisNum).SetRange(binMin, binMax)
                     sparseReco['RecoSecPeakFD'].GetAxis(axisNum).SetRange(binMin, binMax)
 
+            print("PT WEIGHTS")
             ## apply pt weights
             for iVar in ('InvMass', 'Pt'):
+                print("ENTERED PT WEIGHTS")
                 hVarRefl, hVarReflPrompt, hVarReflFD, hVarPrompt, hVarFD = None, None, None, None, None
                 varName = 'Pt' if iVar == 'Pt' else 'Mass'
                 axisNum = cutVars[iVar]['axisnum']
@@ -151,6 +161,7 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
                     hVar.Write()
 
                 if iVar != 'Pt':
+                    print("NOT PT")
                     hVarPrompt = sparseReco['RecoPrompt'].Projection(axisNum)
                     hVarPrompt.SetName(f'hPrompt{varName}_{ptLowLabel:.0f}_{ptHighLabel:.0f}')
                     hVarFD = sparseReco['RecoFD'].Projection(axisNum)
@@ -158,6 +169,7 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
                 else:
                     ### no pt weights
                     if not ptweights and not ptweightsB:
+                        print("NO PT WEIGHTS")
                         hVarPrompt = sparseReco['RecoPrompt'].Projection(axisNum)
                         hVarFD = sparseReco['RecoFD'].Projection(axisNum)
 
@@ -236,7 +248,8 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
                                     hVarFD.SetBinContent(iBin, hVarFD.GetBinContent(iBin) * sPtWeights(ptCent))
                                     hVarFD.SetBinError(iBin, hVarFD.GetBinContent(iBin) * relStatUnc)
 
-                ## wirte teh output           
+                ## write the output 
+                print("WRITING OUTPUT")          
                 hVarPrompt.SetName(f'hPrompt{varName}_{ptLowLabel:.0f}_{ptHighLabel:.0f}')
                 prompt_dict[iVar].append(hVarPrompt)
                 hVarPrompt.Write()
@@ -268,16 +281,21 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
             # end of apply pt weights for reconstruction level
 
             # apply pt weights for generation level
+            print(sparseGen)
+            print("PT WEIGHTS GEN")
             binGenMin = sparseGen['GenPrompt'].GetAxis(0).FindBin(ptMin*1.0001)
             binGenMax = sparseGen['GenPrompt'].GetAxis(0).FindBin(ptMax*0.9999)
             if particleName == 'Dzero':
                 sparseGen['GenPrompt'].GetAxis(3).SetRange(2, 2)  # make sure it is prompt
                 sparseGen['GenFD'].GetAxis(3).SetRange(3, 3)  # make sure it is non-prompt
             sparseGen['GenPrompt'].GetAxis(0).SetRange(binGenMin, binGenMax)
+            print(f"sparseGen['GenPrompt'].Projection(0).Integral(): {sparseGen['GenPrompt'].Projection(0).Integral()}")
             sparseGen['GenFD'].GetAxis(0).SetRange(binGenMin, binGenMax)
+            print(f"sparseGen['GenFD'].Projection(0).Integral(): {sparseGen['GenFD'].Projection(0).Integral()}")
 
             ## no pt weights
             if not ptweights and not ptweightsB:
+                print("NO PT WEIGHTS")
                 hGenPtPrompt = sparseGen['GenPrompt'].Projection(0)
                 hGenPtFD = sparseGen['GenFD'].Projection(0)
 
@@ -353,6 +371,7 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
                 hGenPtFD = sparseGen['GenFD'].Projection(0)
                             
             ## print the output
+            print("WRITING OUTPUT GEN")
             hGenPtPrompt.SetName(f'hPromptGenPt_{ptLowLabel:.0f}_{ptHighLabel:.0f}')
             prompt_gen_list.append(hGenPtPrompt)
             hGenPtPrompt.Write()
@@ -373,6 +392,7 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
 
             bar()
 
+        print("for ivar in cutVars")
         for iVar in cutVars:
             axisNum = cutVars[iVar]['axisnum']
             if 'RecoAll' in sparseReco:
@@ -388,18 +408,17 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
                 sparseReco['RecoSecPeakFD'].GetAxis(axisNum).SetRange(-1, -1)
 
     infile = ROOT.TFile(inputFiles[0])
-    if particleName in ['Dplus', 'Ds']:
-        cent_hist = infile.Get('hf-candidate-creator-3prong/hSelCollisionsCent')
-        outfile_dir = 'hf-candidate-creator-3prong'
-    elif particleName == 'Dzero':
-        cent_hist = infile.Get('hf-candidate-creator-2prong/hSelCollisionsCent')
-        outfile_dir = 'hf-candidate-creator-2prong'
+    print(f"infile: {infile}")
+    nprongs = 2 if particleName == 'Dzero' else 3
+    outfile_dir = f'hf-candidate-creator-{nprongs}prong'
+    cent_hist = infile.Get(f'{outfile_dir}/hSelCollisionsCent')
     outfile.mkdir(outfile_dir)
     outfile.cd(outfile_dir)
     cent_hist.Write()
 
     infile.Close()
     outfile.Close()
+    print("DONE")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments")

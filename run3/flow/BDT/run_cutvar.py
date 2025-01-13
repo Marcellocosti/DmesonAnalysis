@@ -20,9 +20,7 @@ def check_dir(dir):
 	return
 
 def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffix, vn_method, 
-						   skip_make_yaml=False, 
 						   skip_cut_variation=False,
-						   skip_proj_mc=False,
 						   skip_efficiency=False,
 						   skip_vn = False,
 						   skip_frac_cut_var=False,
@@ -33,39 +31,10 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 	# Load the configuration file
 	with open(config_flow, 'r') as cfgFlow:
 		config = yaml.safe_load(cfgFlow)
-
-	ptmins = config['ptmins']
-	ptmaxs = config['ptmaxs']
-
-	correlated_cuts = config['minimisation']['correlated']
-
-	sig_cut_mins = config['cut_variation']['bdt_cut']['sig']['min']
-	sig_cut_maxs = config['cut_variation']['bdt_cut']['sig']['max']
-	sig_cut_steps = config['cut_variation']['bdt_cut']['sig']['step']
-	bkg_cut_mins = config['cut_variation']['bdt_cut']['bkg']['min']
-	bkg_cut_maxs = config['cut_variation']['bdt_cut']['bkg']['max']
-	bkg_cut_steps = config['cut_variation']['bdt_cut']['bkg']['step']
-	
-	nCutSets, _, _, _, _ = get_cut_sets(ptmins, ptmaxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bkg_cut_mins, bkg_cut_maxs, bkg_cut_steps, correlated_cuts)
-
-	print(f"\033[32mNumber of cutsets: {nCutSets}\033[0m")
-
 	output_dir = f"{output}/cutvar_{suffix}"
 
 #___________________________________________________________________________________________________________________________
-	# make yaml file
-	if not skip_make_yaml:
-		check_dir(f"{output_dir}config")
-		MakeyamlPath = './make_yaml_for_ml.py'
-
-		print(f"\033[32mpython3 {MakeyamlPath} {config_flow} -o {output_dir} -s {suffix}\033[0m")
-		os.system(f"python3 {MakeyamlPath} {config_flow} -o {output_dir} -s {suffix}")
-	else:
-		print("\033[33mWARNING: Make yaml will not be performed\033[0m")
-	#TODO: 1.keep the yaml file for the user to check 2.modify the proj_thn_mc 3.use make_combination in proj_thn_mc.py
-
-#___________________________________________________________________________________________________________________________
-	# Cut variation (aply the cut and project)
+	# Cut variation (apply the cut and project)
 	if not skip_cut_variation:
 		check_dir(f"{output_dir}proj")
 		CutVarPath = "./cut_variation.py"
@@ -75,18 +44,8 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 	else:
 		print("\033[33mWARNING: Cut variation will not be performed\033[0m")
 
-#___________________________________________________________________________________________________________________________
-	# Projection for MC and apply the ptweights
-	if not skip_proj_mc:
-		check_dir(f"{output_dir}proj_mc")
-		ProjMcPath = "./proj_thn_mc.py"
-
-		for i in range(nCutSets):
-			iCutSets = f"{i:02d}"
-			print(f"\033[32mpython3 {ProjMcPath} {config_flow} {output_dir}/config/cutset_{suffix}_{iCutSets}.yml -o {output_dir} -s {suffix}_{iCutSets}\033[0m")
-			os.system(f"python3 {ProjMcPath} {config_flow} {output_dir}/config/cutset_{suffix}_{iCutSets}.yml -o {output_dir} -s {suffix}_{iCutSets}")
-	else:
-		print("\033[33mWARNING: Projection for MC will not be performed\033[0m")							
+	print(f"output_dir: {output_dir}/proj/")
+	proj_var_files = [f for f in os.listdir(f'{output_dir}/proj/') if os.path.isfile(os.path.join(f'{output_dir}/proj/', f))] 	
 
 #___________________________________________________________________________________________________________________________
 	# Compute the efficiency
@@ -94,13 +53,14 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 		check_dir(f"{output_dir}eff")
 		EffPath = "./../compute_efficiency.py"
 
-		for i in range(nCutSets):
-			iCutSets = f"{i:02d}"
-			print(f"\033[32mpython3 {EffPath} {config_flow} {output_dir}/proj_mc/proj_mc_{suffix}_{iCutSets}.root -c {cent} -o {output_dir} -s {suffix}_{iCutSets}\033[0m")
-			print(f"\033[32mProcessing cutset {iCutSets}\033[0m")
-			os.system(f"python3 {EffPath} {config_flow} {output_dir}/proj_mc/proj_mc_{suffix}_{iCutSets}.root -c {cent} -o {output_dir} -s {suffix}_{iCutSets} --batch")
+		for ifile in proj_var_files:
+			# iCutSets = f"{i:02d}"
+			print(f"\033[32mpython3 {EffPath} {config_flow} {output_dir}/proj/{ifile} -c {cent} -o {output_dir} -s {ifile[5:-5]}\033[0m")
+			print(f"\033[32mProcessing cutset {ifile[5:-5]}\033[0m")
+			os.system(f"python3 {EffPath} {config_flow} {output_dir}/proj/{ifile} -c {cent} -o {output_dir} -s {ifile[5:-5]} --batch")
 	else:
 		print("\033[33mWARNING: Efficiency will not be performed\033[0m")
+	quit()
 
 #___________________________________________________________________________________________________________________________
 	# do the simulation fit to get the raw yields
@@ -172,12 +132,16 @@ if __name__ == "__main__":
 	args = parser.parse_args()
 
 	print(f"args.centrality: {args.centrality}")
-	run_full_cut_variation(args.flow_config, args.anres_dir, args.centrality, args.resolution, args.outputdir, args.suffix, args.vn_method, 
-						args.skip_make_yaml, 
-						args.skip_cut_variation, 
-						args.skip_proj_mc, 
-						args.skip_efficiency, 
-						args.skip_vn,
-						args.skip_frac_cut_var, 
-						args.skip_data_driven_frac, 
-						args.skip_v2_vs_frac)
+	run_full_cut_variation(args.flow_config, 
+						   args.anres_dir, 
+						   args.centrality, 
+						   args.resolution, 
+						   args.outputdir, 
+						   args.suffix, 
+						   args.vn_method, 
+						   args.skip_cut_variation,
+						   args.skip_efficiency, 
+						   args.skip_vn,
+						   args.skip_frac_cut_var, 
+						   args.skip_data_driven_frac, 
+						   args.skip_v2_vs_frac)
