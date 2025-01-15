@@ -3,28 +3,30 @@ Script for the variation with the BDT cuts.
 python cut_variation.py config.yaml an_res.root -c k3050 -r resolution.root -o path/to/output -s text
 '''
 import ROOT
+from ROOT import TFile
 import yaml
 import argparse
 import numpy as np
 import os
 import sys
 from alive_progress import alive_bar
+from sparse_dicts import get_sparses
+
 sys.path.append('..')
 from flow_analysis_utils import get_vn_versus_mass, get_centrality_bins, get_cut_sets_config
 
 def cut_var(config_flow, an_res_file, centrality, resolution, outputdir, suffix):
     with open(config_flow, 'r') as ymlCfgFile:
         config = yaml.load(ymlCfgFile, yaml.FullLoader)
+    
+    # retrieve sparses and axes numbers
+    sparseFlow, axes = get_sparses(config, 'Data')
+
     pt_mins = config['ptmins']
     pt_maxs = config['ptmaxs']
-    _, cent_bins = get_centrality_bins(centrality)
     det_A = config['detA']
     det_B = config['detB']
     det_C = config['detC']
-    axis_cent = config['axes']['cent']
-    axis_pt = config['axes']['pt']
-    axis_mass = config['axes']['mass']
-    axis_sp = config['axes']['sp']
     inv_mass_bins = config['inv_mass_bins']
     axis_bdt_bkg = config['axes']['bdt_bkg']
     axis_bdt_sig = config['axes']['bdt_sig']
