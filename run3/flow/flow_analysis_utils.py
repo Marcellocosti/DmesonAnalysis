@@ -693,7 +693,7 @@ def get_particle_info(particleName):
 
     return particleTit, massAxisTit, decay, massForFit
 
-def get_cut_sets(pt_mins, pt_maxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bkg_cut_mins=[], bkg_cut_maxs=[], bkg_cut_steps=[], correlated_cuts=True):
+def get_cut_sets(pt_mins, pt_maxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bkg_cut_maxs=[], correlated_cuts=True):
     '''
     Get cut sets
 
@@ -732,6 +732,7 @@ def get_cut_sets(pt_mins, pt_maxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bk
     nCutSets = 0
     sgn_cuts_lower, sgn_cuts_upper, bkg_cuts_lower, bkg_cuts_upper = {}, {}, {}, {}
     if correlated_cuts:
+        print('Correlated cuts')
 
         # compute the signal cutsets for each pt bin
         sgn_cuts_lower = [list(np.arange(sig_cut_mins[iPt], sig_cut_maxs[iPt], sig_cut_steps[iPt])) for iPt in range(len(pt_mins))]
@@ -741,8 +742,10 @@ def get_cut_sets(pt_mins, pt_maxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bk
         nCutSets = len(sgn_cuts_lower[0])
 
         # bkg cuts lower edge should always be 0
-        bkg_cuts_lower = [[0. for _ in range(nCutSets)] for ipt in range(len(pt_mins))]
-        bkg_cuts_upper = [[bkg_cut_maxs[ipt] for _ in range(nCutSets)] for ipt in range(len(pt_mins))]
+        bkg_cuts_lower = [0. for _ in range(len(pt_mins))]
+        print(f"bkg_cut_maxs: {bkg_cut_maxs}")
+        bkg_cuts_upper = [bkg_cut_maxs[iPt] for iPt in range(len(pt_mins))]
+        print(f"bkg_cuts_upper: {bkg_cuts_upper}")
 
     else:
 
