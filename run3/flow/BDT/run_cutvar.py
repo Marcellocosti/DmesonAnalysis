@@ -42,27 +42,25 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 	sig_cut_mins = config['cut_variation']['bdt_cut']['sig']['min']
 	sig_cut_maxs = config['cut_variation']['bdt_cut']['sig']['max']
 	sig_cut_steps = config['cut_variation']['bdt_cut']['sig']['step']
-	bkg_cut_mins = config['cut_variation']['bdt_cut']['bkg']['min']
-	bkg_cut_maxs = config['cut_variation']['bdt_cut']['bkg']['max']
-	bkg_cut_steps = config['cut_variation']['bdt_cut']['bkg']['step']
+	bkg_cut_maxs = config['cut_variation']['bdt_cut']['bkg_maxs_sel']
 	
-	nCutSets, _, _, _, _ = get_cut_sets(ptmins, ptmaxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bkg_cut_mins, bkg_cut_maxs, bkg_cut_steps, correlated_cuts)
+	nCutSets, _, _, _, _ = get_cut_sets(ptmins, ptmaxs, sig_cut_mins, sig_cut_maxs, sig_cut_steps, bkg_cut_maxs, correlated_cuts)
 
 	print(f"\033[32mNumber of cutsets: {nCutSets}\033[0m")
 
 	output_dir = f"{output}/cutvar_{suffix}"
 
-#___________________________________________________________________________________________________________________________
-	# make yaml file
-	if not skip_make_yaml:
-		check_dir(f"{output_dir}/config")
-		MakeyamlPath = './make_yaml_for_ml.py'
+# #___________________________________________________________________________________________________________________________
+# 	# make yaml file
+# 	if not skip_make_yaml:
+# 		check_dir(f"{output_dir}/config")
+# 		MakeyamlPath = './make_yaml_for_ml.py'
 
-		print(f"\033[32mpython3 {MakeyamlPath} {config_flow} -o {output_dir} -s {suffix}\033[0m")
-		os.system(f"python3 {MakeyamlPath} {config_flow} -o {output_dir} -s {suffix}")
-	else:
-		print("\033[33mWARNING: Make yaml will not be performed\033[0m")
-	#TODO: 1.keep the yaml file for the user to check 2.modify the proj_thn_mc 3.use make_combination in proj_thn_mc.py
+# 		print(f"\033[32mpython3 {MakeyamlPath} {config_flow} -o {output_dir} -s {suffix}\033[0m")
+# 		os.system(f"python3 {MakeyamlPath} {config_flow} -o {output_dir} -s {suffix}")
+# 	else:
+# 		print("\033[33mWARNING: Make yaml will not be performed\033[0m")
+# 	#TODO: 1.keep the yaml file for the user to check 2.modify the proj_thn_mc 3.use make_combination in proj_thn_mc.py
 
 #___________________________________________________________________________________________________________________________
 	# Cut variation (aply the cut and project)

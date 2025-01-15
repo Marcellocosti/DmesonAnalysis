@@ -28,20 +28,19 @@ def cut_var(config, an_res_file, centrality, resolution, outputdir, suffix):
     inv_mass_bins = config['inv_mass_bins']
     axis_bdt_bkg = config['axes']['bdt_bkg']
     axis_bdt_sig = config['axes']['bdt_sig']
-    bkg_cut_mins = config['cut_variation']['bdt_cut']['bkg']['min']
-    bkg_cut_maxs = config['cut_variation']['bdt_cut']['bkg']['max']
-    bkg_cut_steps = config['cut_variation']['bdt_cut']['bkg']['step']
+    bkg_cut_maxs = config['cut_variation']['bdt_cut']['bkg_maxs_sel']
     sig_cut_mins = config['cut_variation']['bdt_cut']['sig']['min']
     sig_cut_maxs = config['cut_variation']['bdt_cut']['sig']['max']
     sig_cut_steps = config['cut_variation']['bdt_cut']['sig']['step']
     correlated_cuts = config['minimisation']['correlated']
 
     # get resolution
-    resoFile = ROOT.TFile(resolution, 'READ')
-    histo_reso = resoFile.Get(f'{det_A}_{det_B}_{det_C}/histo_reso')
-    histo_reso.SetName('hist_reso')
-    histo_reso.SetDirectory(0)
-    reso = histo_reso.GetBinContent(1)
+    # resoFile = ROOT.TFile(resolution, 'READ')
+    # histo_reso = resoFile.Get(f'{det_A}_{det_B}_{det_C}/histo_reso')
+    # histo_reso.SetName('hist_reso')
+    # histo_reso.SetDirectory(0)
+    # reso = histo_reso.GetBinContent(1)
+    reso = 0.75
 
     infile = ROOT.TFile(an_res_file, 'READ')
     thnsparse = infile.Get('hf-task-flow-charm-hadrons/hSparseFlowCharm')
@@ -56,8 +55,7 @@ def cut_var(config, an_res_file, centrality, resolution, outputdir, suffix):
 
     nCutSets, sig_cut_lower, sig_cut_upper, bkg_cut_lower, bkg_cut_upper = get_cut_sets(pt_mins, pt_maxs, 
                                                                                     sig_cut_mins, sig_cut_maxs, 
-                                                                                    sig_cut_steps, bkg_cut_mins, 
-                                                                                    bkg_cut_maxs, bkg_cut_steps, 
+                                                                                    sig_cut_steps, bkg_cut_maxs, 
                                                                                     correlated_cuts)
 
     with alive_bar(nCutSets, title='Processing BDT cuts') as bar:
@@ -76,10 +74,10 @@ def cut_var(config, an_res_file, centrality, resolution, outputdir, suffix):
                 # apply the cuts
                 inv_mass_bin = inv_mass_bins[ipt]
                 thnsparse_selcent.GetAxis(axis_pt).SetRangeUser(pt_min, pt_max)
-                thnsparse_selcent.GetAxis(axis_bdt_bkg).SetRangeUser(bkg_cut_lower[ipt][iCut], bkg_cut_upper[ipt][iCut])
+                thnsparse_selcent.GetAxis(axis_bdt_bkg).SetRangeUser(bkg_cut_lower[ipt], bkg_cut_upper[ipt])
                 thnsparse_selcent.GetAxis(axis_bdt_sig).SetRangeUser(sig_cut_lower[ipt][iCut], sig_cut_upper[ipt][iCut])
                 print(f'''pT range: {pt_min} - {pt_max};
-bkg BDT cut: {bkg_cut_lower[ipt][iCut]} - {bkg_cut_upper[ipt][iCut]};
+bkg BDT cut: {bkg_cut_lower[ipt]} - {bkg_cut_upper[ipt]};
 sig BDT cut: {sig_cut_lower[ipt][iCut]} - {sig_cut_upper[ipt][iCut]}
 ''')
 
@@ -97,7 +95,7 @@ sig BDT cut: {sig_cut_lower[ipt][iCut]} - {sig_cut_upper[ipt][iCut]}
                 hist_vn_sp.Write()
 
             outfile.cd()
-            histo_reso.Write()
+            # histo_reso.Write()
             outfile.Close()
             bar()
         

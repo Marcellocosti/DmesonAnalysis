@@ -31,8 +31,14 @@ def proj_MC(config, cutsetConfig, outputdir, suffix):
     particleName = config['Dmeson']
     enableRef = config['enableRef']
     enableSecPeak = config['enableSecPeak']
-    ptweights = [config['ptweightPath'], config['ptweightName']]
-    ptweightsB = [config['ptweightBPath'], config['ptweightBName']]
+    if config.get('ptweightPath'):
+        ptweights = [config['ptweightPath'], config['ptweightName']]
+    else:
+        ptweights = ''
+    if config.get('ptweightBPath'):
+        ptweightsB = [config['ptweightBPath'], config['ptweightBName']]
+    else:
+        ptweightsB = ''
     Bspeciesweights = config['Bspeciesweights'] if 'Bspeciesweights' in config else None
 
     #TODO: safety checks for Dmeson reflecton and secondary peak

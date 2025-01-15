@@ -88,9 +88,7 @@ def make_yaml(flow_config, outputdir, suffix):
     ptmaxs = input['ptmaxs']
 
     # cut variation
-    bkg_cut_mins = input['cut_variation']['bdt_cut']['bkg']['min']
-    bkg_cut_maxs = input['cut_variation']['bdt_cut']['bkg']['max']
-    bkg_cut_steps = input['cut_variation']['bdt_cut']['bkg']['step']
+    bkg_cut_maxs = input['cut_variation']['bdt_cut']['bkg_maxs_sel']
     sig_cut_mins = input['cut_variation']['bdt_cut']['sig']['min']
     sig_cut_maxs = input['cut_variation']['bdt_cut']['sig']['max']
     sig_cut_steps = input['cut_variation']['bdt_cut']['sig']['step']
@@ -98,13 +96,12 @@ def make_yaml(flow_config, outputdir, suffix):
     ## safely check
     if len(ptmins) != len(ptmaxs):
         raise ValueError(f'''The number of pt bins({len(ptmins)}, {len(ptmaxs)}),
-                         bkg cuts({len(bkg_cut_mins)}, {len(bkg_cut_maxs)}),
+                         bkg cuts {len(bkg_cut_maxs)},
                          and sig cuts({len(sig_cut_mins)}, {len(sig_cut_maxs)}) are not the same''')
 
     nCutSets, sig_cut_lower, sig_cut_upper, bkg_cut_lower, bkg_cut_upper = get_cut_sets(ptmins, ptmaxs, 
                                                                                         sig_cut_mins, sig_cut_maxs, 
-                                                                                        sig_cut_steps, bkg_cut_mins, 
-                                                                                        bkg_cut_maxs, bkg_cut_steps, 
+                                                                                        sig_cut_steps, bkg_cut_maxs,  
                                                                                         input['minimisation']['correlated'])
 
     sig_cut_lower_file = {i: [sig_cut_lower[ipt][i] for ipt in range(len(ptmins))] for i in range(nCutSets)}
