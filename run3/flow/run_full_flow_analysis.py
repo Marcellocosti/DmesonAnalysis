@@ -96,7 +96,7 @@ def run_full_analysis(config,
         reso_file_withopt = f" -r {reso_file}"
         outputdir_proj = f"-o {outputdir}/proj"
         an_res_files = " ".join(an_res_file)
-        command_proj = f"python3 project_thnsparse.py {config} {an_res_files} {cent_withopt} {reso_file_withopt} {suffix_withopt} {outputdir_proj} {vn_method_withopt}"
+        command_proj = f"python3 {os.path.join(script_dir, 'project_thnsparse.py')} {config} {an_res_files} {cent_withopt} {reso_file_withopt} {suffix_withopt} {outputdir_proj} {vn_method_withopt}"
         if wagon_id != "":
             command_proj += f" {wagon_id_withopt}"
         print("\n\033[92m Starting projection\033[0m")

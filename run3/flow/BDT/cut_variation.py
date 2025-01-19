@@ -28,6 +28,13 @@ def cut_var(config_flow, an_res_file, centrality, resolution, outputdir, suffix)
     det_B = config['detB']
     det_C = config['detC']
     inv_mass_bins = config['inv_mass_bins']
+    bkg_cut_mins = config['cut_variation']['bdt_cut']['bkg']['min']
+    bkg_cut_maxs = config['cut_variation']['bdt_cut']['bkg']['max']
+    bkg_cut_steps = config['cut_variation']['bdt_cut']['bkg']['step']
+    sig_cut_mins = config['cut_variation']['bdt_cut']['sig']['min']
+    sig_cut_maxs = config['cut_variation']['bdt_cut']['sig']['max']
+    sig_cut_steps = config['cut_variation']['bdt_cut']['sig']['step']
+    correlated_cuts = config['minimisation']['correlated']
     axis_bdt_bkg = config['axes']['bdt_bkg']
     axis_bdt_sig = config['axes']['bdt_sig']
 
@@ -53,6 +60,7 @@ def cut_var(config_flow, an_res_file, centrality, resolution, outputdir, suffix)
     os.makedirs(f'{outputdir}/proj', exist_ok=True)
 
     CutSets, sig_cut_lower, sig_cut_upper, bkg_cut_lower, bkg_cut_upper = get_cut_sets_config(config_flow)
+    CutSets, sig_cut_lower, sig_cut_upper, bkg_cut_lower, bkg_cut_upper = get_cut_sets_config(config)
     nCutSets = max(CutSets)
 
     with alive_bar(nCutSets, title='Processing BDT cuts') as bar:
