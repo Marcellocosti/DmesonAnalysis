@@ -20,7 +20,9 @@ def compute_frac_cut_var(config_flow, inputdir, outputdir, suffix, batch=False):
 
     gROOT.SetBatch(batch)
 
-    with open(config_flow, 'r') as ymlCfgFile:
+    CutSets, _, _, _, _ = get_cut_sets_config(config)
+    nCutSets = max(CutSets)
+    with open(config, 'r') as ymlCfgFile:
         config = yaml.load(ymlCfgFile, yaml.FullLoader)
 
     if os.path.exists(f'{inputdir}/eff'):
@@ -60,9 +62,6 @@ def compute_frac_cut_var(config_flow, inputdir, outputdir, suffix, batch=False):
     applyEffVarToFD = config['minimisation']['applyEffVariation']['feeddown']
 
     hRawYields, hEffPrompt, hEffFD = [], [], []
-    
-    CutSets, _, _, _, _ = get_cut_sets_config(config_flow)
-    nCutSets = max(CutSets)
 
     # load inputs raw yields and efficiencies
     hCrossSecPrompt, hCrossSecFD = [], []

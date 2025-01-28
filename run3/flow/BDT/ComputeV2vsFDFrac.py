@@ -31,7 +31,9 @@ def set_frame_style(canv, Title, particleTit):
 
 def v2_vs_frac(config_flow, inputdir, outputdir, suffix):
 
-    with open(config_flow, 'r') as ymlCfgFile:
+    CutSets, _, _, _, _ = get_cut_sets_config(config)
+    nCutSets = max(CutSets)
+    with open(config, 'r') as ymlCfgFile:
         config = yaml.load(ymlCfgFile, yaml.FullLoader)
         
     ptmins = config['ptmins']
