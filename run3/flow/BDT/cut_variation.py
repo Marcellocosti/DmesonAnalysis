@@ -3,38 +3,29 @@ Script for the variation with the BDT cuts.
 python cut_variation.py config.yaml an_res.root -c k3050 -r resolution.root -o path/to/output -s text
 '''
 import ROOT
-from ROOT import TFile
 import yaml
 import argparse
 import numpy as np
 import os
 import sys
 from alive_progress import alive_bar
-from sparse_dicts import get_sparses
-
 sys.path.append('..')
 from flow_analysis_utils import get_vn_versus_mass, get_centrality_bins, get_cut_sets_config
 
 def cut_var(config_flow, an_res_file, centrality, resolution, outputdir, suffix):
     with open(config_flow, 'r') as ymlCfgFile:
         config = yaml.load(ymlCfgFile, yaml.FullLoader)
-    
-    # retrieve sparses and axes numbers
-    sparseFlow, axes = get_sparses(config, 'Data')
-
     pt_mins = config['ptmins']
     pt_maxs = config['ptmaxs']
+    _, cent_bins = get_centrality_bins(centrality)
     det_A = config['detA']
     det_B = config['detB']
     det_C = config['detC']
+    axis_cent = config['axes']['cent']
+    axis_pt = config['axes']['pt']
+    axis_mass = config['axes']['mass']
+    axis_sp = config['axes']['sp']
     inv_mass_bins = config['inv_mass_bins']
-    bkg_cut_mins = config['cut_variation']['bdt_cut']['bkg']['min']
-    bkg_cut_maxs = config['cut_variation']['bdt_cut']['bkg']['max']
-    bkg_cut_steps = config['cut_variation']['bdt_cut']['bkg']['step']
-    sig_cut_mins = config['cut_variation']['bdt_cut']['sig']['min']
-    sig_cut_maxs = config['cut_variation']['bdt_cut']['sig']['max']
-    sig_cut_steps = config['cut_variation']['bdt_cut']['sig']['step']
-    correlated_cuts = config['minimisation']['correlated']
     axis_bdt_bkg = config['axes']['bdt_bkg']
     axis_bdt_sig = config['axes']['bdt_sig']
 
@@ -60,7 +51,6 @@ def cut_var(config_flow, an_res_file, centrality, resolution, outputdir, suffix)
     os.makedirs(f'{outputdir}/proj', exist_ok=True)
 
     CutSets, sig_cut_lower, sig_cut_upper, bkg_cut_lower, bkg_cut_upper = get_cut_sets_config(config_flow)
-    CutSets, sig_cut_lower, sig_cut_upper, bkg_cut_lower, bkg_cut_upper = get_cut_sets_config(config)
     nCutSets = max(CutSets)
 
     with alive_bar(nCutSets, title='Processing BDT cuts') as bar:
@@ -187,7 +177,6 @@ sig BDT cut: {sig_cut_lower[ipt][iCut]} - {sig_cut_upper[ipt][iCut]}
                 hist_vn_sp.SetName(f'hist_vn_sp_pt{pt_min}_{pt_max}')
                 if reso > 0:
                     hist_vn_sp.Scale(1./reso)
-                print(f"hist_vn_sp.Integral(): {hist_vn_sp.Integral()}")
                 hist_fd.Write()
                 hist_mass.Write()
                 hist_vn_sp.Write()
