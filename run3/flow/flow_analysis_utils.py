@@ -830,7 +830,7 @@ def get_cut_sets(npt_bins, sig_cut, bkg_cut_maxs, correlated_cuts=True):
         
         # load the background cut
         bkg_cuts_lower = [[0. for _ in range(nCutSets[iPt])] for iPt in range(npt_bins)]
-        bkg_cuts_upper = [[bkg_cut_maxs[iPt] for _ in range(nCutSets[iPt])] for iPt in range(npt_bins)]
+        bkg_cuts_upper = [[bkg_cut_maxs[iPt][iCut] for iCut in range(nCutSets[iPt])] for iPt in range(npt_bins)]
         
     # safety check
 

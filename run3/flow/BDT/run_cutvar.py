@@ -13,16 +13,16 @@ def check_dir(dir):
 		print(f"\033[32m{dir} does not exist, it will be created\033[0m")
 		os.makedirs(dir)
 	else:
-		print(f"\033[33m{dir} already exists, it will be removed and recreat\033[0m")
+		print(f"\033[33m{dir} already exists, it will be removed and recreated\033[0m")
 		shutil.rmtree(dir)
 		os.makedirs(dir)
 
 	return
 
-def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffix, vn_method, use_preprocessed, 
+def run_full_cut_variation(config_flow, cent, res_file, output, suffix, vn_method, use_preprocessed, 
 						   skip_calc_weights=False,
 						   skip_make_yaml=False, 
-						   skip_cut_variation=False,
+						   skip_proj_data=False,
 						   skip_proj_mc=False,
 						   skip_efficiency=False,
 						   skip_vn = False,
@@ -42,7 +42,11 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 
 	output_dir = f"{output}/cutvar_{suffix}"
  
-	os.system(f"mkdir -p {output_dir}")
+	if not os.path.exists(output_dir):
+		print(f"Creating {output_dir}")
+		os.makedirs(output_dir)
+	else:
+		print(f"Directory already exists: {output_dir}")
 
 	# the pT weights histograms
 	PtWeightsDHistoName = 'hPtWeightsFONLLtimesTAMUDcent'
@@ -80,25 +84,26 @@ def run_full_cut_variation(config_flow, anres_dir, cent, res_file, output, suffi
 
 #___________________________________________________________________________________________________________________________
 	# Projection for MC and apply the ptweights
-	if not skip_proj_mc:
-		check_dir(f"{output_dir}/proj")
-		ProjMcPath = "./proj_thn_mc.py"
+	if not skip_proj_mc or not skip_proj_data:
+		ProjPath = "./proj_thn_mc.py"
 		pre_process = "--preprocessed" if use_preprocessed else ""
+		proj_data = "--proj_data" if not skip_proj_data else ""
+		proj_mc = "--proj_mc" if not skip_proj_mc else ""
 		if not os.path.exists(f'{output_dir}/ptweights/pTweight_{suffix}.root'):
 			for i in range(nCutSets):
 				iCutSets = f"{i:02d}"
-				print(f"\033[32mpython3 {ProjMcPath} {config_flow} {output_dir}/config/cutset_{suffix}_{iCutSets}.yml {pre_process} -c {cent} -r {res_file} -o {output_dir} -s {suffix}_{iCutSets}\033[0m")
-				os.system(f"python3 {ProjMcPath} {config_flow} {output_dir}/config/cutset_{suffix}_{iCutSets}.yml {pre_process} -c {cent} -r {res_file} -o {output_dir} -s {suffix}_{iCutSets}")
+				print(f"\033[32mpython3 {ProjPath} {proj_data} {proj_mc} {config_flow} {output_dir}/config/cutset_{suffix}_{iCutSets}.yml {pre_process} -c {cent} -r {res_file} -o {output_dir} -s {suffix}_{iCutSets}\033[0m")
+				os.system(f"python3 {ProjPath} {proj_data} {proj_mc} {config_flow} {output_dir}/config/cutset_{suffix}_{iCutSets}.yml {pre_process} -c {cent} -r {res_file} -o {output_dir} -s {suffix}_{iCutSets}")
 		else:
 			for i in range(nCutSets):
 				iCutSets = f"{i:02d}"
 				print(
-					f"\033[32mpython3 {ProjMcPath} {config_flow} {output_dir}/config/cutset_{suffix}_{iCutSets}.yml {pre_process} "
+					f"\033[32mpython3 {ProjPath} {proj_data} {proj_mc} {config_flow} {output_dir}/config/cutset_{suffix}_{iCutSets}.yml {pre_process} "
 					f"-w {output_dir}/ptweights/pTweight_{suffix}.root hPtWeightsFONLLtimesTAMUDcent "
 					f"-wb {output_dir}/ptweights/pTweight_{suffix}.root hPtWeightsFONLLtimesTAMUBcent "
 					f"-c {cent} -r {res_file} -o {output_dir} -s {suffix}_{iCutSets} \033[0m"
 				)
-				os.system(f"python3 {ProjMcPath} {config_flow} {output_dir}/config/cutset_{suffix}_{iCutSets}.yml {pre_process} \
+				os.system(f"python3 {ProjPath} {proj_data} {proj_mc} {config_flow} {output_dir}/config/cutset_{suffix}_{iCutSets}.yml {pre_process} \
 						-w {output_dir}/ptweights/pTweight_{suffix}.root hPtWeightsFONLLtimesTAMUDcent \
 						-wb {output_dir}/ptweights/pTweight_{suffix}.root hPtWeightsFONLLtimesTAMUBcent -c {cent} -r {res_file} -o {output_dir} -s {suffix}_{iCutSets}")
 
@@ -182,7 +187,7 @@ if __name__ == "__main__":
 	parser.add_argument("--skip_pre_process", "-sprep", action="store_true", help="skip preprocessing of AnalysisResults files")
 	parser.add_argument("--skip_calc_weights", "-scw", action="store_true", help="skip calculation of weights")
 	parser.add_argument("--skip_make_yaml", "-smy", action="store_true", help="skip make yaml")
-	parser.add_argument("--skip_cut_variation", "-scv", action="store_true", help="skip cut variation")
+	parser.add_argument("--skip_proj_data", "-spd", action="store_true", help="skip projection for data")
 	parser.add_argument("--skip_proj_mc", "-spm", action="store_true", help="skip projection for MC")
 	parser.add_argument("--skip_efficiency", "-se", action="store_true", help="skip efficiency")
 	parser.add_argument("--skip_vn", "-svn", action="store_true", help="skip vn extraction")
@@ -191,10 +196,10 @@ if __name__ == "__main__":
 	parser.add_argument("--skip_v2_vs_frac", "-sv2fd", action="store_true", help="skip v2 vs FD fraction")
 	args = parser.parse_args()
 
-	run_full_cut_variation(args.flow_config, args.anres_dir, args.centrality, args.resolution, args.outputdir, args.suffix, args.vn_method, args.preprocessed,
+	run_full_cut_variation(args.flow_config, args.centrality, args.resolution, args.outputdir, args.suffix, args.vn_method, args.preprocessed,
 						args.skip_calc_weights,
 						args.skip_make_yaml, 
-						args.skip_cut_variation, 
+						args.skip_proj_data, 
 						args.skip_proj_mc, 
 						args.skip_efficiency, 
 						args.skip_vn,

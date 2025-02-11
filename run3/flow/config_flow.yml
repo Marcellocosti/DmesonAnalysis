@@ -35,7 +35,7 @@ sig_ml_cuts: [0.6, 0.6, 0.6, 0.6, 0.6, 0.6]       # min probability for sig, one
 
 # ep/sp subevents
 detA: 'FT0c'
-detB: 'FT0a'
+detB: 'FV0a'
 detC: 'TPCpos'
 
 # fit options
@@ -63,14 +63,15 @@ SigmaRatioFile: ""
 BoundMean: 0 # 0: Do not set limits on mean range, 1: the mean is set to be between MassMin[i] and MassMax[i]
 
 ### config to use pre-processed AnalysisResults files 
-skim_out_dir: '/Users/mcosti/Analysis/Datasets/3050/skim3040bkgstrict'
+skimDir: '/home/mdicosta/Datasets/3050/skim3040bkgstrict'
+axestokeep: ['Mass', 'sp', 'score_FD', 'Pt']
 
 DrawVnComps: true  # draw single terms of vn function
 IncludeKDETempls: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]  # boolean flag to include templates or not
 FromGrid: true # compute templates from TemplsInputs, else take them from file with FromFile flag
 # To add more templates, use [part1, ... ,partN]
 TemplsFlags: [2]  # flag of flagMcDecayRec to query the dataframe from which the KDE is obtained
-TemplsInputs: ['/Users/mcosti/Analysis/Datasets/Templates/AO2D_325626.root']  # input AODs for templates
+TemplsInputs: ['/home/mdicosta/Datasets/Templates/AO2D_325626.root']  # input AODs for templates
 TemplsTreeNames: ['O2hfcanddplite'] # name of tree in the AO2D file
 ### init weights for mass templates and vn of templates
 InitWeights: [[500], [500], [500], [500], [500], [500], [500], [500], [500], [500], [500], [500], [500], [500], [500]]
