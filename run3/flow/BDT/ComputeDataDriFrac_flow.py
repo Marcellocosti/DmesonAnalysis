@@ -20,7 +20,7 @@ def data_driven_frac(inputdir, outputdir, suffix, batch=False):
         effFiles = [f'{inputdir}/eff/{file}'
                     for file in os.listdir(f'{inputdir}/eff') if file.endswith('.root') and suffix in file]
     else:
-        raise ValueError(f'No eff fodel found in {inputdir}')
+        raise ValueError(f'No eff folder found in {inputdir}')
     
     if os.path.exists(f'{inputdir}/CutVarFrac'):
         fracFiles = [f'{inputdir}/CutVarFrac/{file}' 
@@ -30,9 +30,6 @@ def data_driven_frac(inputdir, outputdir, suffix, batch=False):
     
     effFiles.sort()
     fracFiles.sort()
-
-    # if len(effFiles) != len(fracFiles):
-    #     raise ValueError('Number of eff and frac files do not match')
 
     for iFile, effFile in enumerate(effFiles):
         effFile = TFile.Open(effFile)
@@ -58,11 +55,8 @@ def data_driven_frac(inputdir, outputdir, suffix, batch=False):
         for iPt in range(hEffPrompt.GetNbinsX()):
             ptMin = hEffPrompt.GetBinLowEdge(iPt+1)
             ptMax = ptMin+hEffPrompt.GetBinWidth(iPt+1)
-            ptCent = hEffPrompt.GetBinCenter(iPt+1)
             effAccPrompt = hEffPrompt.GetBinContent(iPt+1)
             effAccFD = hEffFD.GetBinContent(iPt+1)
-            effAccPromptUnc = hEffPrompt.GetBinError(iPt+1)
-            effAccFDUnc = hEffFD.GetBinError(iPt+1)
 
             corrYieldPrompt = hCorrYieldPrompt.GetBinContent(iPt+1)
             corrYieldFD = hCorrYieldFD.GetBinContent(iPt+1)

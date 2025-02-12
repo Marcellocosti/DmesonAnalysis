@@ -32,17 +32,11 @@ def set_frame_style(canv, Title, particleTit):
 def v2_vs_frac(config, inputdir, outputdir, suffix):
 
     CutSets, _, _, _, _ = get_cut_sets_config(config)
-    nCutSets = max(CutSets)
     with open(config, 'r') as ymlCfgFile:
         config = yaml.load(ymlCfgFile, yaml.FullLoader)
         
     ptmins = config['ptmins']
     ptmaxs = config['ptmaxs']
-
-    histoNameV2 = config['histoNameV2']
-    graphNameV2 = config['graphNameV2']
-    histoNameEffFD = config['histoNameFracFD']
-    histoNameEffPrompt = config['histoNameFracPrompt']
     particleName = config['Dmeson']
 
     particleTit, _, decay, _ = get_particle_info(particleName)
@@ -71,13 +65,13 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
 
     for fracFile, v2File in zip(fracFiles, v2Files):
         inV2File = TFile.Open(v2File)
-        hV2.append(inV2File.Get(histoNameV2))
-        gV2.append(inV2File.Get(graphNameV2))
+        hV2.append(inV2File.Get('hvnSimFit'))
+        gV2.append(inV2File.Get('gvnSimFit'))
         hV2[-1].SetDirectory(0)
 
         inFracFile = TFile.Open(fracFile)
-        hFracFD.append(inFracFile.Get(histoNameEffFD))
-        hFracPrompt.append(inFracFile.Get(histoNameEffPrompt))
+        hFracFD.append(inFracFile.Get('hFDFrac'))
+        hFracPrompt.append(inFracFile.Get('hPromptFrac'))
         hFracFD[-1].SetDirectory(0)
         hFracPrompt[-1].SetDirectory(0)
 

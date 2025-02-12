@@ -69,6 +69,7 @@ def proj_mc_reco(config, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights, sPt
 
     ### pt weights for prompt
     if ptWeights:
+        print(f'ptWeights: {ptWeights}')
         hPtPrompt = sparsesReco['RecoPrompt'].Projection(axes['RecoPrompt']['Pt'])
         for iBin in range(1, hPtPrompt.GetNbinsX()+1):
             if hPtPrompt.GetBinContent(iBin) > 0.:
@@ -86,6 +87,7 @@ def proj_mc_reco(config, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights, sPt
                 hPtFD.SetBinError(iBin, hPtFD.GetBinContent(iBin) * relStatUnc)
     ### pt weights for non-prompt, but no B species weights
     if ptWeightsB and not Bspeciesweights:
+        print('if ptWeightsB and not Bspeciesweights')
         hPtBvsPtD = sparsesReco['RecoFD'].Projection(axes['RecoFD']['Pt'], axes['RecoFD']['pt_bmoth'])
         for iPtD in range(1, hPtBvsPtD.GetXaxis().GetNbins()+1):
             for iPtB in range(1, hPtBvsPtD.GetYaxis().GetNbins()+1):
@@ -104,6 +106,7 @@ def proj_mc_reco(config, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights, sPt
         hPtFD = hPtBvsPtD.ProjectionX(f'hFDPt', 0, hPtBvsPtD.GetYaxis().GetNbins()+1, 'e')
     ### pt weights from B for non-prompt and B species weights
     elif ptWeightsB and Bspeciesweights:
+        print('elif ptWeightsB and Bspeciesweights')
         hPtBvsBspecievsPtD = sparsesReco['RecoFD'].Projection(axes['RecoFD']['Pt'], axes['RecoFD']['flag_bhad'], axes['RecoFD']['pt_bmoth'])
         for iPtD in range(1, hPtBvsBspecievsPtD.GetXaxis().GetNbins()+1):
             for iBspecie in range(1, hPtBvsBspecievsPtD.GetYaxis().GetNbins()+1):
@@ -124,6 +127,7 @@ def proj_mc_reco(config, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights, sPt
                                                 0, hPtBvsBspecievsPtD.GetZaxis().GetNbins()+1, 'e')
     ### only B species weights
     elif Bspeciesweights:
+        print('elif Bspeciesweights')
         hBspecievsPtD = sparsesReco['RecoFD'].Projection(axes['RecoFD']['Pt'], axes['RecoFD']['flag_bhad'])
         for iPtD in range(1, hBspecievsPtD.GetXaxis().GetNbins()+1):
             for iBspecie in range(1, hBspecievsPtD.GetYaxis().GetNbins()+1):
@@ -199,6 +203,7 @@ def proj_mc_gen(config, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights, sPtW
     ## apply pt weights for non-prompt
     ### pt weights from B for non-prompt, but no B species weights
     if ptWeightsB and not Bspeciesweights:
+        print('if ptWeightsB and not Bspeciesweights')
         hPtBvsPtGenD = sparsesGen['GenFD'].Projection(axes['GenFD']['Pt'], axes['GenFD']['pt_bmoth'])
         for iPtD in range(1, hPtBvsPtGenD.GetXaxis().GetNbins()+1):
             for iPtB in range(1, hPtBvsPtGenD.GetYaxis().GetNbins()+1):
@@ -217,6 +222,7 @@ def proj_mc_gen(config, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights, sPtW
         hGenPtFD = hPtBvsPtGenD.ProjectionX(f'hFDGenPt', 0, hPtBvsPtGenD.GetYaxis().GetNbins()+1, 'e')
     ### pt weights from B for non-prompt and B species weights
     elif ptWeightsB and Bspeciesweights:
+        print('elif ptWeightsB and Bspeciesweights')
         hPtBvsBspecievsPtGenD = sparsesGen['GenFD'].Projection(axes['GenFD']['Pt'], axes['GenFD']['flag_bhad'], axes['GenFD']['pt_bmoth'])
         for iPtD in range(1, hPtBvsBspecievsPtGenD.GetXaxis().GetNbins()+1):
             for iBspecie in range(1, hPtBvsBspecievsPtGenD.GetYaxis().GetNbins()+1):
@@ -237,6 +243,7 @@ def proj_mc_gen(config, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights, sPtW
                                                      0, hPtBvsBspecievsPtGenD.GetZaxis().GetNbins()+1, 'e')
     ### only B species weights
     elif Bspeciesweights:
+        print('elif Bspeciesweights')
         hBspecievsPtGenD = sparsesGen['GenFD'].Projection(axes['GenFD']['Pt'], axes['GenFD']['flag_bhad'])
         for iPtD in range(1, hBspecievsPtGenD.GetXaxis().GetNbins()+1):
             for iBspecie in range(1, hBspecievsPtGenD.GetYaxis().GetNbins()+1):
@@ -313,7 +320,8 @@ if __name__ == "__main__":
     parser.add_argument("--suffix", "-s", metavar="text",
                         default="", help="suffix for output files")
     args = parser.parse_args()
-
+    
+    print(f"args.pre_processed: {args.preprocessed}")
     with open(args.config, 'r') as ymlCfgFile:
         config = yaml.load(ymlCfgFile, yaml.FullLoader)
 
@@ -328,7 +336,7 @@ if __name__ == "__main__":
     
     cent, (cent_min, cent_max) = get_centrality_bins(args.centrality)
     outfile_dir = 'hf-candidate-creator-2prong' if config['Dmeson'] == 'Dzero' else 'hf-candidate-creator-3prong'
-    infilemc = TFile.Open(config['MC_filename'], 'r')
+    infilemc = TFile.Open(config['eff_filename'], 'r')
     histo_cent = infilemc.Get(f'{outfile_dir}/hSelCollisionsCent')
     histo_cent.GetXaxis().SetRangeUser(cent_min, cent_max)
     resofile = TFile.Open(args.resolution, 'r')
@@ -388,7 +396,7 @@ if __name__ == "__main__":
                     outfile.cd(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}')
                     print(f"Projected data!")
                 
-                if not args.preprocessed:
+                else:
                     print('NOT PREPROCESSED')
                     for iSparse, (key, sparse) in enumerate(sparsesFlow.items()):
                         for iVar in cutVars:

@@ -1,13 +1,3 @@
-# global info (do not change)
-axes: {mass: 0,
-       pt: 1,
-       cent: 2,
-       sp: 5,
-       deltaphi: 4,
-       phi: 3,
-       bdt_bkg: 6,
-       bdt_sig: 7}
-
 harmonic: 2 # 2: v2, 3: v3, etc.
 
 # pt bins
@@ -115,16 +105,6 @@ cut_variation:
                   max: [0.30, 0.45, 0.70, 0.97, 1.00] # max pt 5
                 - min: [0.00, 0.30, 0.45, 0.70, 0.97] # min pt 6
                   max: [0.30, 0.45, 0.70, 0.97, 1.00] # max pt 6
-       
-
-# these configurations are available only for the MC
-#_______________________________________________________________________________________________________________________
-## axes for the MC from Dtask
-### for D0: mass-2 pt-3 bdt_bkg-0 bdt_prompt-6 bdt_nonprompt-1
-axes_mc: {mass: 3,
-              pt: 4,
-              bdt_bkg: 0,
-              bdt_sig: 2}
 
 #_______________________________________________________________________________________________________________________
 ## used for computting pT weights
@@ -151,52 +131,11 @@ shapes:
                 Bs: ''
 
 #_______________________________________________________________________________________________________________________
-## used for the MC in projection_thnsparse.py
-### for D0, D+, Ds
-MC_filename: [path/to/MCfile.root]
-dirname: hf-task-d0
-sparsenameAll: null
-sparsenamePrompt: hBdtScoreVsMassVsPtVsPtBVsYVsOriginVsD0Type
-sparsenameFD: hBdtScoreVsMassVsPtVsPtBVsYVsOriginVsD0Type
-sparsenameGenPrompt: hSparseAcc # also used in computting pT weights
-sparsenameGenFD: hSparseAcc # also used in computting pT weights
-### only for D0
 enableRef: false #reflection for D0. 
-# if `enableRef` is set to `true`,  and `ReflFile` is empty, then `ReflFile` will be aotumatically filled.
-sparsenameRefl: hBdtScoreVsMassVsPtVsPtBVsYVsOriginVsD0Type
 # if `ReflFile` is filled, then it will use the filled one
 reflFile: ''
 ### only for Ds
 enableSecPeak: no #no second peak for D+
-sparsenamePromptSecPeak: null
-sparsenameFDSecPeak: null
-sparsenameGenPromptSecPeak: null
-sparsenameGenFDSecPeak: null
-
-#_______________________________________________________________________________________________________________________
-## used for compute_frac_cut_var.py 
-histoNameRaw: hRawYieldsSimFit # also ComputeV2vsFDFrac.py
-histoNameEffPrompt: hEffPrompt
-histoNameEffFD: hEffFD
 
 minimisation:
     correlated: true # true --> fully correlated, false --> fully uncorrelated
-    doRawYieldSmearing: false # whether to smear the yields with a poissonian error
-    setseed: false # set the seed for Poissonian smearing
-    applyEffVariation:
-        enable: false
-        relvariation: 0.05
-        option: decreasing # available options: [upshift, downshift, decreasing, increasing]
-        prompt: true
-        feeddown: true
-
-linearplot: 
-    enable: true #enable linear plots NpromptVsNFD
-    uncbands: false #enable upper/lower linear plots limits
-    outfileformat: ['png', 'pdf', 'jpg'] # linear plot saved in different output formats (e.g. png, pdf, etc.). Plots are already saved in the ouput TFile
-
-## used for ComputeV2vsFDFrac.py
-histoNameV2: hvnSimFit
-graphNameV2: gvnSimFit
-histoNameFracFD: hFDFrac
-histoNameFracPrompt: hPromptFrac
