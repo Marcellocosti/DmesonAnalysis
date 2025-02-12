@@ -22,11 +22,11 @@ def set_frame_style(canv, Title, particleTit):
     hFrame.GetYaxis().SetNoExponent()
     hFrame.GetXaxis().SetMoreLogLabels()
     hFrame.GetYaxis().SetTitleSize(0.04)
-    hFrame.GetYaxis().SetTitleOffset(1.4)
+    hFrame.GetYaxis().SetTitleOffset(1.2)
     hFrame.GetYaxis().SetLabelSize(0.04)
     hFrame.GetXaxis().SetTitleSize(0.04)
     hFrame.GetXaxis().SetLabelSize(0.04)
-    hFrame.GetXaxis().SetTitleOffset(1.4)
+    hFrame.GetXaxis().SetTitleOffset(1.2)
     hFrame.GetYaxis().SetNdivisions(505)
 
 def v2_vs_frac(config, inputdir, outputdir, suffix):
@@ -161,7 +161,7 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
         if nPtBins == 1:
             suffix_pdf = ''
 
-        cFrac.append(TCanvas(f"cFrac_{ptStrings[iPt]}", "", 1200, 1200))
+        cFrac.append(TCanvas(f"cFrac_{ptStrings[iPt]}", "", 1600, 1600))
         set_frame_style(cFrac[-1], ptStrings[iPt], particleTit)
 
         t.SetTextSize(0.04)
@@ -184,7 +184,7 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
 
     outFile.cd()
     PtTit = "#it{p}_{T} GeV/#it{c}"
-    leg = TLegend(0.55, 0.75, 0.88, 0.89)
+    leg = TLegend(0.40, 0.75, 0.60, 0.89)
     leg.SetTextSize(0.045)
     leg.SetBorderSize(0)
     leg.SetFillStyle(0)
@@ -193,28 +193,36 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
 
     cV2VsPtFD = TCanvas("cV2VsPtFD", "non-prompt v2 versus pt")
     cV2VsPtFD.SetCanvasSize(800, 800)
+    cV2VsPtFD.SetLeftMargin(0.17)   # Increase left margin for y-axis title
+    cV2VsPtFD.SetBottomMargin(0.13) # Increase bottom margin for x-axis title
     cV2VsPtFD.cd()
     hV2VsPtFD.Draw("")
     hV2VsPtFD.GetXaxis().SetTitle(PtTit)
     hV2VsPtFD.GetYaxis().SetTitle("Non-prompt #it{v_{2}}")
-    hV2VsPtFD.GetYaxis().SetRangeUser(-0.05, 0.35)
+    hV2VsPtFD.GetYaxis().SetTitleOffset(1.5)
+    hV2VsPtFD.GetYaxis().SetRangeUser(-0.10, 0.25)
     hV2VsPtFD.SetMarkerStyle(20)
     hV2VsPtFD.SetMarkerSize(2)
     hV2VsPtFD.GetYaxis().SetNoExponent()
 
     cV2VsPtPrompt = TCanvas("cV2VsPtPrompt", "prompt v2 versus pt")
     cV2VsPtPrompt.SetCanvasSize(800, 800)
+    cV2VsPtPrompt.SetLeftMargin(0.17)   # Increase left margin for y-axis title
+    cV2VsPtPrompt.SetBottomMargin(0.17) # Increase bottom margin for x-axis title
     cV2VsPtPrompt.cd()
     hV2VsPtPrompt.Draw("")
     hV2VsPtPrompt.GetXaxis().SetTitle(PtTit)
     hV2VsPtPrompt.GetYaxis().SetTitle("Prompt #it{v_{2}}")
-    hV2VsPtPrompt.GetYaxis().SetRangeUser(-0.05, 0.35)
+    hV2VsPtPrompt.GetYaxis().SetTitleOffset(1.5)
+    hV2VsPtPrompt.GetYaxis().SetRangeUser(0.0, 0.22)
     hV2VsPtPrompt.SetMarkerStyle(20)
     hV2VsPtPrompt.SetMarkerSize(2)
     hV2VsPtPrompt.GetYaxis().SetNoExponent()
 
     cPromptAndFDV2 = TCanvas("cPromptAndFDV2", "prompt and non-prompt v2 versus pt")
     cPromptAndFDV2.SetCanvasSize(800, 800)
+    cPromptAndFDV2.SetLeftMargin(0.17)   # Increase left margin for y-axis title
+    cPromptAndFDV2.SetBottomMargin(0.17) # Increase bottom margin for x-axis title
     cPromptAndFDV2.cd()
     hV2VsPtFD.GetYaxis().SetTitle("#it{v_{2}}")
     hV2VsPtFD.Draw("")

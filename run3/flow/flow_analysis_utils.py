@@ -8,6 +8,11 @@ import sys
 import ctypes
 from itertools import combinations
 import numpy as np
+import fitz  # PyMuPDF
+from PIL import Image
+import math
+import glob
+import re
 
 def get_vn_versus_mass(thnSparses, inv_mass_bins, mass_axis, vn_axis, debug=False):
     '''
@@ -874,3 +879,91 @@ def get_cut_sets_config(config):
         bkg_cut_maxs = config['cut_variation']['uncorr_bdt_cut']['bkg_max']
 
     return get_cut_sets(len(ptmins), sig_cut, bkg_cut_maxs, correlated_cuts)
+
+def cut_var_image_merger(cut_var_dir, suffix):
+
+    def pdf_to_images(pdf_path):
+        """Extract images from a PDF and return them as PIL images."""
+        doc = fitz.open(pdf_path)
+        images = []
+
+        for page in doc:
+            pix = page.get_pixmap()
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            images.append(img)
+
+        return images
+
+    def create_multipanel(images, iImage, rows=None, cols=None, bg_color="white"):
+        """Combine multiple images into a grid layout with customizable rows and columns.
+        
+        Args:
+            images (list): List of PIL Image objects.
+            rows (int, optional): Number of rows in the grid. If None, it is auto-calculated.
+            cols (int, optional): Number of columns in the grid. If None, it is auto-calculated.
+            bg_color (str, optional): Background color for empty spaces. Default is white.
+        
+        Returns:
+            PIL.Image: Combined image in a grid layout.
+        """
+        if not images:
+            raise ValueError("At least one image is required.")
+        
+        # Determine grid size if not specified
+        num_images = len(images)
+        if rows is None and cols is None:
+            cols = math.ceil(math.sqrt(num_images))  # Approximate square grid
+        if rows is None:
+            rows = math.ceil(num_images / cols)
+        if cols is None:
+            cols = math.ceil(num_images / rows)
+        
+        # Resize images to match the smallest width and height
+        min_width = min(img[iImage].width for img in images)
+        min_height = min(img[iImage].height for img in images)
+        resized_images = [img[iImage].resize((min_width, min_height)) for img in images]
+        
+        # Create a blank canvas
+        combined_width = min_width * cols
+        combined_height = min_height * rows
+        combined = Image.new("RGB", (combined_width, combined_height), bg_color)
+        
+        # Paste images into the grid
+        for index, img in enumerate(resized_images):
+            row, col = divmod(index, cols)
+            x_offset = col * min_width
+            y_offset = row * min_height
+            combined.paste(img, (x_offset, y_offset))
+        
+        return combined
+
+    def process_pdfs(pdf_list, output_folder):
+        """Processes a custom number of pdfs and saves multipanel images."""
+        if len(pdf_list) == 0:
+            raise ValueError("No PDF provided!")
+
+        # Extract images from PDFs
+        images = [pdf_to_images(pdf) for pdf in pdf_list]
+        num_pages = min(len(imgs) for imgs in images)  # Use the shortest PDF
+
+        os.makedirs(f"{output_folder}", exist_ok=True)
+
+        for i in range(num_pages):
+            panel = create_multipanel(images, i)
+            panel.save(os.path.join(f"{output_folder}", f"panel_{i+1}_{suffix}.png"))
+
+        print(f"Saved {num_pages} multipanel images in '{output_folder}'.")
+    
+
+    cutvar_files = [f"{cut_var_dir}/CutVarFrac/CutVarFrac_{suffix}_CorrMatrix.pdf", 
+                    f"{cut_var_dir}/CutVarFrac/CutVarFrac_{suffix}_Distr.pdf", 
+                    f"{cut_var_dir}/CutVarFrac/CutVarFrac_{suffix}_Eff.pdf", 
+                    f"{cut_var_dir}/CutVarFrac/CutVarFrac_{suffix}_Frac.pdf",
+                    f"{cut_var_dir}/V2VsFrac/FracV2_{suffix}.pdf"]
+    
+    process_pdfs(cutvar_files, f"{cut_var_dir}/merged_images/cutvar")
+    
+    fit_files = glob.glob(f"{cut_var_dir}/ry/*.pdf")
+    fit_files_sorted = sorted(fit_files, key=lambda x: int(re.search(r"_(\d+)_D\w*.pdf$", x).group(1)))
+    process_pdfs(fit_files_sorted, f"{cut_var_dir}/merged_images/fits/")
+    

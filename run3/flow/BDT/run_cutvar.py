@@ -5,7 +5,7 @@ import argparse
 import yaml
 import shutil
 sys.path.append('..')
-from flow_analysis_utils import get_cut_sets_config
+from flow_analysis_utils import get_cut_sets_config, cut_var_image_merger
 
 def check_dir(dir):
 
@@ -171,8 +171,12 @@ def run_full_cut_variation(config_flow, cent, res_file, output, suffix, vn_metho
 	else:
 		print("\033[33mWARNING: v2 vs fraction will not be performed\033[0m")
 	
-	return
 
+#___________________________________________________________________________________________________________________________
+	# Merge cut var figures in multipanel images
+	print(f"\033[32mCut_var_image_merger({output_dir}, {suffix})\033[0m")
+	cut_var_image_merger(output_dir, suffix)
+	return
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Arguments')
@@ -184,7 +188,6 @@ if __name__ == "__main__":
 	parser.add_argument("--suffix", "-s", metavar="text", default="", help="suffix for output files")
 	parser.add_argument("--vn_method", "-vn", metavar="text", default="sp", help="vn technique (sp, ep, deltaphi)")
 	parser.add_argument("--preprocessed", "-prep", action="store_true", help="use preprocessed input")
-	parser.add_argument("--skip_pre_process", "-sprep", action="store_true", help="skip preprocessing of AnalysisResults files")
 	parser.add_argument("--skip_calc_weights", "-scw", action="store_true", help="skip calculation of weights")
 	parser.add_argument("--skip_make_yaml", "-smy", action="store_true", help="skip make yaml")
 	parser.add_argument("--skip_proj_data", "-spd", action="store_true", help="skip projection for data")

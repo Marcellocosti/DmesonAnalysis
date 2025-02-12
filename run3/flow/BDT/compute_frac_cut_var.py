@@ -372,6 +372,7 @@ def compute_frac_cut_var(config, inputdir, outputdir, suffix, batch=False):
     outFileNameFracPDF = outFileName.replace('.root', '_Frac.pdf')
     outFileNameCorrMatrixPDF = outFileName.replace('.root', '_CorrMatrix.pdf')
     for iPt in range(len(ptmins)):
+        print(f"len(ptmins): {len(ptmins)}")
         if iPt == 0:
             cEff[iPt].SaveAs(f'{outFileNameEffPDF}[')
             cDistr[iPt].SaveAs(f'{outFileNameDistrPDF}[')
@@ -389,7 +390,7 @@ def compute_frac_cut_var(config, inputdir, outputdir, suffix, batch=False):
         if config['linearplot']['enable']:
             for iformat in config['linearplot']['outfileformat']:
                 outFileNameLinPlot = outFileName.replace('.root', f'_LinearPlot{iPt+1}_{iPt+2}.{iformat}')
-                cLinearPlot[iPt].SaveAs(f'{outFileNameLinPlot}')
+                # cLinearPlot[iPt].SaveAs(f'{outFileNameLinPlot}')
     
     
 
