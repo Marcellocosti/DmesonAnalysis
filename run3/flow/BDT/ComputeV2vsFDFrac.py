@@ -1,6 +1,6 @@
 """
 python script for the computation of the prompt or non-prompt v2 via extrapolation
-run: python ComputeV2vsFDFrac.py config.yaml --inputdir path/to/input --outputdir path/to/output --suffix text
+run: python ComputeV2vsFDFrac.py config.yaml --cutvardir path/to/input --cutvardir path/to/output --suffix text
 
 """
 import argparse
@@ -29,7 +29,7 @@ def set_frame_style(canv, Title, particleTit):
     hFrame.GetXaxis().SetTitleOffset(1.2)
     hFrame.GetYaxis().SetNdivisions(505)
 
-def v2_vs_frac(config, inputdir, outputdir, suffix):
+def v2_vs_frac(config, cutvardir, suffix):
 
     CutSets, _, _, _, _ = get_cut_sets_config(config)
     with open(config, 'r') as ymlCfgFile:
@@ -38,21 +38,19 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
     ptmins = config['ptmins']
     ptmaxs = config['ptmaxs']
     particleName = config['Dmeson']
-
     particleTit, _, decay, _ = get_particle_info(particleName)
-    
 
-    if os.path.exists(f'{inputdir}/DataDrivenFrac'):
-        fracFiles = [f'{inputdir}/DataDrivenFrac/{file}'
-                        for file in os.listdir(f'{inputdir}/DataDrivenFrac') if file.endswith('.root') and suffix in file]
+    if os.path.exists(f'{cutvardir}/DataDrivenFrac'):
+        fracFiles = [f'{cutvardir}/DataDrivenFrac/{file}'
+                        for file in os.listdir(f'{cutvardir}/DataDrivenFrac') if file.endswith('.root') and suffix in file]
     else:
-        raise ValueError(f'No DataDrivenFrac folder found in {inputdir}')
+        raise ValueError(f'No DataDrivenFrac folder found in {cutvardir}')
 
-    if os.path.exists(f'{inputdir}/ry'):
-        v2Files = [f'{inputdir}/ry/{file}'
-                    for file in os.listdir(f'{inputdir}/ry') if file.endswith('.root') and suffix in file]
+    if os.path.exists(f'{cutvardir}/ry'):
+        v2Files = [f'{cutvardir}/ry/{file}'
+                    for file in os.listdir(f'{cutvardir}/ry') if file.endswith('.root') and suffix in file]
     else:
-        raise ValueError(f'No ry folder found in {inputdir}')
+        raise ValueError(f'No ry folder found in {cutvardir}')
 
     fracFiles.sort()
     v2Files.sort()
@@ -94,7 +92,6 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
 
         avrV2XErrL.append(Double_t(sum(gV2[i].GetErrorXlow(iPt) for i in range(nSets)) / nSets))
         avrV2XErrH.append(Double_t(sum(gV2[i].GetErrorXhigh(iPt) for i in range(nSets)) / nSets))
-        
 
         v2Values = [hV2[i].GetBinContent(iPt + 1) for i in range(nSets)]
         v2Unc = [hV2[i].GetBinError(iPt + 1) for i in range(nSets)]
@@ -106,7 +103,6 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
             gFracVsV2[iPt].SetPoint(iSet, fracFD, v2)
             gFracVsV2[iPt].SetPointError(iSet, fracFDUnc, v2Unc)
         
-        # gFracVsV2Fit = TGraphErrors(gFracVsV2[-1])
         linFunc = TF1("linear", "pol1", 0, 1)
         SetObjectStyle(linFunc, color=kOrange+1, linestyle=9, linewidth=2)
         gFracVsV2[-1].Fit("linear", "", "", 0, 1)
@@ -118,27 +114,25 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
         fitter.GetConfidenceIntervals(hV2VsFrac[-1], 0.683)
         hV2VsFrac[-1].SetLineColorAlpha(kAzure+5, 0.15)
 
-        # get the v2 value at the FD fraction = 1, and it is not the last bin?
+        # get the v2 value at the FD fraction = 1
         hV2VsPtFD.SetBinContent(iPt + 1, 
                                 hV2VsFrac[-1].GetBinContent(hV2VsFrac[-1].GetNbinsX()))
         hV2VsPtFD.SetBinError(iPt + 1,
                                 hV2VsFrac[-1].GetBinError(hV2VsFrac[-1].GetNbinsX()))
         
-        # get the v2 value at the FD fraction = 0, and it is the first bin?
+        # get the v2 value at the FD fraction = 0
         hV2VsPtPrompt.SetBinContent(iPt + 1, 
                                     hV2VsFrac[-1].GetBinContent(hV2VsFrac[-1].GetBin(1)))
         hV2VsPtPrompt.SetBinError(iPt + 1,
                                     hV2VsFrac[-1].GetBinError(hV2VsFrac[-1].GetBin(1)))
         
         #TODO: plot the v2 vs pt, and the center of the pt bin is calculate by the average of pT
-
         ptStrings.append(f"{ptMin:.1f} < #it{{p}}_{{T}} < {ptMax:.1f} GeV/#it{{c}}")
         chi2Strings.append(f"#chi^{{2}}/n.d.f = {chi2/ndf:.2f}")
 
-
     # save the results
-    os.makedirs(outputdir + f'/V2VsFrac', exist_ok=True)
-    outFile = TFile(f'{outputdir}/V2VsFrac/V2VsFrac_{suffix}.root', "recreate")
+    os.makedirs(cutvardir + f'/V2VsFrac', exist_ok=True)
+    outFile = TFile(f'{cutvardir}/V2VsFrac/V2VsFrac_{suffix}.root', "recreate")
     
     t = TLatex(8, 8, "")
     t.SetNDC()
@@ -146,14 +140,15 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
     t.SetTextColor(kBlack)
 
     for iPt, (ptMin, ptMax) in enumerate(zip(ptmins, ptmaxs)):
-        if iPt == 0:
-            suffix_pdf = '('
-        elif iPt == nPtBins-1:
-            suffix_pdf = ')'
-        else:
-            suffix_pdf = ''
         if nPtBins == 1:
             suffix_pdf = ''
+        else:
+            if iPt == 0:
+                suffix_pdf = '('
+            elif iPt == nPtBins-1:
+                suffix_pdf = ')'
+            else:
+                suffix_pdf = ''
 
         cFrac.append(TCanvas(f"cFrac_{ptStrings[iPt]}", "", 1600, 1600))
         set_frame_style(cFrac[-1], ptStrings[iPt], particleTit)
@@ -169,7 +164,7 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
 
         cFrac[-1].Update()
 
-        cFrac[iPt].SaveAs(f"{outputdir}/V2VsFrac/FracV2_{suffix}.pdf{suffix_pdf}")
+        cFrac[iPt].SaveAs(f"{cutvardir}/V2VsFrac/FracV2_{suffix}.pdf{suffix_pdf}")
 
         outFile.mkdir(f"pt_{int(ptMin*10)}_{int(ptMax*10)}")
         outFile.cd(f"pt_{int(ptMin*10)}_{int(ptMax*10)}")
@@ -187,8 +182,8 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
 
     cV2VsPtFD = TCanvas("cV2VsPtFD", "non-prompt v2 versus pt")
     cV2VsPtFD.SetCanvasSize(800, 800)
-    cV2VsPtFD.SetLeftMargin(0.17)   # Increase left margin for y-axis title
-    cV2VsPtFD.SetBottomMargin(0.13) # Increase bottom margin for x-axis title
+    cV2VsPtFD.SetLeftMargin(0.17)
+    cV2VsPtFD.SetBottomMargin(0.13)
     cV2VsPtFD.cd()
     hV2VsPtFD.Draw("")
     hV2VsPtFD.GetXaxis().SetTitle(PtTit)
@@ -201,8 +196,8 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
 
     cV2VsPtPrompt = TCanvas("cV2VsPtPrompt", "prompt v2 versus pt")
     cV2VsPtPrompt.SetCanvasSize(800, 800)
-    cV2VsPtPrompt.SetLeftMargin(0.17)   # Increase left margin for y-axis title
-    cV2VsPtPrompt.SetBottomMargin(0.17) # Increase bottom margin for x-axis title
+    cV2VsPtPrompt.SetLeftMargin(0.17)
+    cV2VsPtPrompt.SetBottomMargin(0.17)
     cV2VsPtPrompt.cd()
     hV2VsPtPrompt.Draw("")
     hV2VsPtPrompt.GetXaxis().SetTitle(PtTit)
@@ -215,8 +210,8 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
 
     cPromptAndFDV2 = TCanvas("cPromptAndFDV2", "prompt and non-prompt v2 versus pt")
     cPromptAndFDV2.SetCanvasSize(800, 800)
-    cPromptAndFDV2.SetLeftMargin(0.17)   # Increase left margin for y-axis title
-    cPromptAndFDV2.SetBottomMargin(0.17) # Increase bottom margin for x-axis title
+    cPromptAndFDV2.SetLeftMargin(0.17)
+    cPromptAndFDV2.SetBottomMargin(0.17)
     cPromptAndFDV2.cd()
     hV2VsPtFD.GetYaxis().SetTitle("#it{v_{2}}")
     hV2VsPtFD.Draw("")
@@ -228,26 +223,23 @@ def v2_vs_frac(config, inputdir, outputdir, suffix):
 
     hV2VsPtFD.Write()
     hV2VsPtPrompt.Write()
-    cV2VsPtFD.SaveAs(f"{outputdir}/V2VsFrac/V2VsPtFD_{suffix}.pdf")
-    cV2VsPtPrompt.SaveAs(f"{outputdir}/V2VsFrac/V2VsPtPrompt_{suffix}.pdf")
-    cPromptAndFDV2.SaveAs(f"{outputdir}/V2VsFrac/V2VsPtPromptAndFD_{suffix}.pdf")
+    cV2VsPtFD.SaveAs(f"{cutvardir}/V2VsFrac/V2VsPtFD_{suffix}.pdf")
+    cV2VsPtPrompt.SaveAs(f"{cutvardir}/V2VsFrac/V2VsPtPrompt_{suffix}.pdf")
+    cPromptAndFDV2.SaveAs(f"{cutvardir}/V2VsFrac/V2VsPtPromptAndFD_{suffix}.pdf")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Arguments')
     parser.add_argument("config", metavar="text",
                         default="config.yaml", help="flow configuration file")
-    parser.add_argument('--inputdir', '-i', metavar='text',
-                        default='.', help='input directory containing rawyields and frac files')
-    parser.add_argument("--outputdir", "-o", metavar="text",
-                        default=".", help="output directory")
+    parser.add_argument('--cutvardir', '-dir', metavar='text',
+                        default='.', help='directory of the cutvariation outputs')
     parser.add_argument("--suffix", "-s", metavar="text",
                         default="", help="suffix for output files")
     args = parser.parse_args()
 
     v2_vs_frac(
         args.config,
-        args.inputdir,
-        args.outputdir,
+        args.cutvardir,
         args.suffix
     )

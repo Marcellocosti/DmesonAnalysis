@@ -1,6 +1,5 @@
 import os
 import sys
-import numpy as np
 import argparse
 import yaml
 import shutil
@@ -29,7 +28,8 @@ def run_full_cut_variation(config_flow,
 						   vn = False,
 						   frac_cut_var=False,
 						   data_driven_frac=False,
-						   v2_vs_frac=False):
+						   v2_vs_frac=False,
+         				   merge_images=False):
 
     
 #___________________________________________________________________________________________________________________________
@@ -54,17 +54,15 @@ def run_full_cut_variation(config_flow,
 		os.makedirs(output_dir)
 	else:
 		print(f"Directory already exists: {output_dir}")
- 
-	print(f"calc_weights: {calc_weights}")
+
 	# copy the configuration file
 	config_suffix = 1
 	while os.path.exists(f'{output_dir}/config_flow_{suffix}_{config_suffix}.yml'):
 		config_suffix = config_suffix + 1
-	os.system(f'cp {config_flow} {output_dir}/config_flow_{suffix}_{config_suffix}.yml')
+	os.system(f'cp {config_flow} {output_dir}/{os.path.splitext(os.path.basename(config_flow))[0]}_{suffix}_{config_suffix}.yml')
 
 #___________________________________________________________________________________________________________________________
 	# calculate the pT weights
-	print(f"calc_weights: {calc_weights}")
 	if calc_weights:
 		check_dir(f"{output_dir}/ptweights")
 		CalcWeiPath = "./ComputePtWeights.py"
@@ -137,7 +135,7 @@ def run_full_cut_variation(config_flow,
 
 		for i in range(nCutSets):
 			iCutSets = f"{i:02d}"
-			print(f"\033[32mpython3 {SimFitPath} {config_flow} {cent} {output_dir}/proj/proj_{suffix}.root -o {output_dir}/ry -s _{suffix}_{iCutSets} -vn {vn_method}\033[0m")
+			print(f"\033[32mpython3 {SimFitPath} {config_flow} {cent} {output_dir}/proj/proj_{suffix}_{iCutSets}.root -o {output_dir}/ry -s _{suffix}_{iCutSets} -vn {vn_method}\033[0m")
 			print(f"\033[32mProcessing cutset {iCutSets}\033[0m")
 			os.system(f"python3 {SimFitPath} {config_flow} {cent} {output_dir}/proj/proj_{suffix}_{iCutSets}.root -o {output_dir}/ry -s _{suffix}_{iCutSets} -vn {vn_method} --batch")
 	else:
@@ -149,8 +147,8 @@ def run_full_cut_variation(config_flow,
 		check_dir(f"{output_dir}/CutVarFrac")
 		CurVarFracPath = "./compute_frac_cut_var.py"
 
-		print(f"\033[32mpython3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix}\033[0m")
-		os.system(f"python3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix} --batch")
+		print(f"\033[32mpython3 {CurVarFracPath} {config_flow} -dir {output_dir} -s {suffix}\033[0m")
+		os.system(f"python3 {CurVarFracPath} {config_flow} -dir {output_dir} -s {suffix} --batch")
 	else:
 		print("\033[33mWARNING: Fraction by cut variation will not be performed\033[0m")
 
@@ -160,8 +158,8 @@ def run_full_cut_variation(config_flow,
 		check_dir(f"{output_dir}/DataDrivenFrac")
 		DataDrivenFracPath = "./ComputeDataDriFrac_flow.py"
 
-		print(f"\033[32mpython3 {DataDrivenFracPath} -i {output_dir} -o {output_dir} -s {suffix}\033[0m")
-		os.system(f"python3 {DataDrivenFracPath} -i {output_dir} -o {output_dir} -s {suffix} --batch")
+		print(f"\033[32mpython3 {DataDrivenFracPath} -dir {output_dir} -s {suffix}\033[0m")
+		os.system(f"python3 {DataDrivenFracPath} -dir {output_dir} -s {suffix} --batch")
 	else:
 		print("\033[33mWARNING: Fraction by Data-driven method will not be performed\033[0m")
 
@@ -171,41 +169,44 @@ def run_full_cut_variation(config_flow,
 		check_dir(f"{output_dir}/V2VsFrac")
 		v2vsFDFracPath = "./ComputeV2vsFDFrac.py"
 
-		print(f"\033[32mpython3 {v2vsFDFracPath} {config_flow} -i {output_dir} -o {output_dir} -s {suffix}\033[0m")
-		os.system(f"python3 {v2vsFDFracPath} {config_flow} -i {output_dir} -o {output_dir} -s {suffix}")
+		print(f"\033[32mpython3 {v2vsFDFracPath} {config_flow} -dir {output_dir} -s {suffix}\033[0m")
+		os.system(f"python3 {v2vsFDFracPath} {config_flow} -dir {output_dir} -s {suffix}")
 	else:
 		print("\033[33mWARNING: v2 vs fraction will not be performed\033[0m")
 	
 
 #___________________________________________________________________________________________________________________________
 	# Merge cut var figures in multipanel images
-	print(f"\033[32mCut_var_image_merger({output_dir}, {suffix})\033[0m")
-	cut_var_image_merger(output_dir, suffix)
+	if merge_images:
+		print(f"\033[32m\nCut_var_image_merger({output_dir}, {suffix})\033[0m")
+		cut_var_image_merger(output_dir, suffix)
 	return
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Arguments')
 	parser.add_argument('flow_config', metavar='text', default='config_flow_d0.yml', help='configuration file')
 	parser.add_argument("--preprocessed", "-prep", action="store_true", help="use preprocessed input")
-	parser.add_argument("--calc_weights", "-scw", action="store_true", help="skip calculation of weights")
-	parser.add_argument("--make_yaml", "-smy", action="store_true", help="skip make yaml")
-	parser.add_argument("--proj_data", "-spd", action="store_true", help="skip projection for data")
-	parser.add_argument("--proj_mc", "-spm", action="store_true", help="skip projection for MC")
-	parser.add_argument("--efficiency", "-se", action="store_true", help="skip efficiency")
-	parser.add_argument("--vn", "-svn", action="store_true", help="skip vn extraction")
-	parser.add_argument("--frac_cut_var", "-sf", action="store_true", help="skip fraction by cut variation")
-	parser.add_argument("--data_driven_frac", "-sddf", action="store_true", help="skip fraction by data-driven method")
-	parser.add_argument("--v2_vs_frac", "-sv2fd", action="store_true", help="skip v2 vs FD fraction")
+	parser.add_argument("--do_calc_weights", "-cw", action="store_true", help="skip calculation of weights")
+	parser.add_argument("--do_make_yaml", "-my", action="store_true", help="skip make yaml")
+	parser.add_argument("--do_proj_data", "-pd", action="store_true", help="skip projection for data")
+	parser.add_argument("--do_proj_mc", "-pm", action="store_true", help="skip projection for MC")
+	parser.add_argument("--do_efficiency", "-e", action="store_true", help="skip efficiency")
+	parser.add_argument("--do_vn", "-vn", action="store_true", help="skip vn extraction")
+	parser.add_argument("--do_frac_cut_var", "-f", action="store_true", help="skip fraction by cut variation")
+	parser.add_argument("--do_data_driven_frac", "-ddf", action="store_true", help="skip fraction by data-driven method")
+	parser.add_argument("--do_v2_vs_frac", "-v2fd", action="store_true", help="skip v2 vs FD fraction")
+	parser.add_argument("--do_merge_images", "-mergeim", action="store_true", help="skip v2 vs FD fraction")
 	args = parser.parse_args()
 
 	run_full_cut_variation(args.flow_config, 
                            args.preprocessed,
-						   args.calc_weights,
-						   args.make_yaml, 
-						   args.proj_data, 
-						   args.proj_mc, 
-						   args.efficiency, 
-						   args.vn,
-						   args.frac_cut_var, 
-						   args.data_driven_frac, 
-						   args.v2_vs_frac)
+						   args.do_calc_weights,
+						   args.do_make_yaml, 
+						   args.do_proj_data, 
+						   args.do_proj_mc, 
+						   args.do_efficiency, 
+						   args.do_vn,
+						   args.do_frac_cut_var, 
+						   args.do_data_driven_frac, 
+						   args.do_v2_vs_frac,
+						   args.do_merge_images)

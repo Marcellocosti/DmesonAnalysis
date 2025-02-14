@@ -6,17 +6,17 @@ import numpy as np
 from itertools import product
 import ROOT
 from ROOT import TFile, TCanvas, TLegend, TLatex, gROOT
-from ROOT import TFile, TH1F, TH2F, TCanvas, TLegend, TGraphAsymmErrors, TLatex, gRandom, TF1  # pylint: disable=import-error,no-name-in-module
+from ROOT import TFile, TH1F, TH2F, TCanvas, TLegend, TLatex  # pylint: disable=import-error,no-name-in-module
 from ROOT import kBlack, kRed, kAzure, kGreen, kRainBow # pylint: disable=import-error,no-name-in-module
-from ROOT import kFullCircle, kFullSquare, kOpenSquare, kOpenCircle, kOpenCross, kOpenDiamond # pylint: disable=import-error,no-name-in-module
+from ROOT import kFullCircle, kFullSquare, kOpenSquare, kOpenCircle # pylint: disable=import-error,no-name-in-module
 from os.path import exists
 sys.path.append('../../../')
 sys.path.append('..')
 from flow_analysis_utils import get_cut_sets_config
 from utils.StyleFormatter import SetGlobalStyle, SetObjectStyle
-from utils.AnalysisUtils import GetPromptFDYieldsAnalyticMinimisation, ApplyVariationToList
+from utils.AnalysisUtils import GetPromptFDYieldsAnalyticMinimisation
 
-def compute_frac_cut_var(config, inputdir, outputdir, suffix, batch=False):
+def compute_frac_cut_var(config, cutvardir, suffix, batch=False):
 
     gROOT.SetBatch(batch)
 
@@ -24,24 +24,20 @@ def compute_frac_cut_var(config, inputdir, outputdir, suffix, batch=False):
     with open(config, 'r') as ymlCfgFile:
         config = yaml.load(ymlCfgFile, yaml.FullLoader)
 
-    if os.path.exists(f'{inputdir}/eff'):
-        effFiles = [f'{inputdir}/eff/{file}'
-                    for file in os.listdir(f'{inputdir}/eff') if file.endswith('.root') and suffix in file]
+    if os.path.exists(f'{cutvardir}/eff'):
+        effFiles = [f'{cutvardir}/eff/{file}'
+                    for file in os.listdir(f'{cutvardir}/eff') if file.endswith('.root') and suffix in file]
     else:
-        raise ValueError(f'No eff fodel found in {inputdir}')
+        raise ValueError(f'No eff folder found in {cutvardir}')
     
-    if os.path.exists(f'{inputdir}/ry'):
-        rawYieldFiles = [f'{inputdir}/ry/{file}' 
-                        for file in os.listdir(f'{inputdir}/ry') if file.endswith('.root') and suffix in file]
+    if os.path.exists(f'{cutvardir}/ry'):
+        rawYieldFiles = [f'{cutvardir}/ry/{file}' 
+                        for file in os.listdir(f'{cutvardir}/ry') if file.endswith('.root') and suffix in file]
     else:
-        raise ValueError(f'No ry folder found in {inputdir}')
+        raise ValueError(f'No ry folder found in {cutvardir}')
     
     effFiles.sort()
     rawYieldFiles.sort()
-
-    # load configuration
-    ptmins = config['ptmins']
-    ptmaxs = config['ptmaxs']
 
     #TODO: apply smearing
 
@@ -74,14 +70,8 @@ def compute_frac_cut_var(config, inputdir, outputdir, suffix, batch=False):
     for iRow, row in enumerate(hCovCorrYields):
         for iCol, hCov in enumerate(row):
             SetObjectStyle(hCov, linecolor=kBlack)
-            if iRow == 0:
-                rowName = '#it{N}_{prompt}'
-            else:
-                rowName = '#it{N}_{non-prompt}'
-            if iCol == 0:
-                colName = '#it{N}_{prompt}'
-            else:
-                colName = '#it{N}_{non-prompt}'
+            rowName = '#it{N}_{prompt}' if iRow == 0 else '#it{N}_{non-prompt}'
+            colName = '#it{N}_{prompt}' if iCol == 0 else '#it{N}_{non-prompt}'
             hCov.SetTitle(f';#it{{p}}_{{T}} (GeV/#it{{c}}); #sigma({rowName}, {colName})')
 
     SetGlobalStyle(padleftmargin=0.15, padtopmargin=0.08, titleoffsetx=1.,
@@ -113,6 +103,8 @@ def compute_frac_cut_var(config, inputdir, outputdir, suffix, batch=False):
     hPromptFracVsCut, hFDFracVsCut, cFrac = [], [], []
     hCorrMatrixCutSets, cCorrMatrix = [], []
 
+    ptmins = config['ptmins']
+    ptmaxs = config['ptmaxs']
     for iPt, (ptMin, ptMax) in enumerate(zip(ptmins, ptmaxs)):
         nSets = CutSets[iPt]
 
@@ -257,8 +249,8 @@ def compute_frac_cut_var(config, inputdir, outputdir, suffix, batch=False):
     hCorrYieldFD.Draw('same')
     legEff.Draw()
 
-    os.makedirs(f'{outputdir}/CutVarFrac', exist_ok=True)
-    outFileName = f'{outputdir}/CutVarFrac/CutVarFrac_{suffix}.root'
+    os.makedirs(f'{cutvardir}/CutVarFrac', exist_ok=True)
+    outFileName = f'{cutvardir}/CutVarFrac/CutVarFrac_{suffix}.root'
     outFile = TFile(outFileName, 'recreate')
     cCorrYield.Write()
     hCorrYieldPrompt.Write()
@@ -268,7 +260,6 @@ def compute_frac_cut_var(config, inputdir, outputdir, suffix, batch=False):
     for iPt, (ptmin, ptmax) in enumerate(zip(ptmins, ptmaxs)):
         outFile.mkdir(f"pt{ptmin:.1f}_{ptmax:.1f}")
         outFile.cd(f"pt{ptmin:.1f}_{ptmax:.1f}")
-        print(f"Writing to dir pt{ptmin:.1f}_{ptmax:.1f} of file {outFile}")
         cDistr[iPt].Write()
         cEff[iPt].Write()
         cFrac[iPt].Write()
@@ -307,14 +298,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Arguments')
     parser.add_argument("config", metavar="text",
                         default="config.yaml", help="flow configuration file")
-    parser.add_argument('inputdir', metavar='text',
-                        default='path/to/eff/proj_mc', help='input path')
-    parser.add_argument("--outputdir", "-o", metavar="text",
-                        default=".", help="output directory")
+    parser.add_argument("--cutvardir", "-dir", metavar="text",
+                        default=".", help="directory of the cutvariation outputs")
     parser.add_argument("--suffix", "-s", metavar="text",
                         default="", help="suffix for output files")
     parser.add_argument("--batch", "-b", action="store_true",
                         help="run in batch mode")
     args = parser.parse_args()
 
-    compute_frac_cut_var(args.config, args.inputdir, args.outputdir, args.suffix, args.batch)
+    compute_frac_cut_var(args.config, args.cutvardir, args.suffix, args.batch)

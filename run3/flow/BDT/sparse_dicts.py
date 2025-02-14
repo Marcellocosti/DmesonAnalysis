@@ -1,4 +1,3 @@
-import ROOT
 from ROOT import TFile
 
 def get_sparses_dicts(config, preprocessed):
@@ -124,7 +123,6 @@ def get_sparses_dicts(config, preprocessed):
     return axes_dict
 
 def get_sparses(config, get_data, get_mc_reco, get_mc_gen, preprocessed=False, preprocess_dir='', debug=False):
-    
     sparsesFlow, sparsesReco, sparsesGen, axes_dict = {}, {}, {}, {}    
     
     if get_data:
@@ -132,7 +130,7 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, preprocessed=False, p
             axes_dict['Flow'] = {ax: iax for iax, ax in enumerate(config['axestokeep'])}
             for ptmin, ptmax in zip(config['ptmins'], config['ptmaxs']):
                 print(f"Loading flow sparse from file: {preprocess_dir}/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
-                infileflow = ROOT.TFile(f"{preprocess_dir}/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
+                infileflow = TFile(f"{preprocess_dir}/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
                 sparsesFlow[f'Flow_{ptmin*10}_{ptmax*10}'] = infileflow.Get('hf-task-flow-charm-hadrons/hSparseFlowCharm')
                 infileflow.Close()
         else:
@@ -147,13 +145,13 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, preprocessed=False, p
             }
             for ifile, file in enumerate(config['flow_files']):
                 print(f"Loading flow sparse from file: {file}")
-                infileflow = ROOT.TFile(file)
+                infileflow = TFile(file)
                 sparsesFlow[f'Flow_{ifile}'] = infileflow.Get('hf-task-flow-charm-hadrons/hSparseFlowCharm')
                 infileflow.Close()
        
     if get_mc_gen or get_mc_reco:
         print(f"Loading mc sparse from: {config['eff_filename']}")
-        infiletask = ROOT.TFile(config['eff_filename'])
+        infiletask = TFile(config['eff_filename'])
     
     if get_mc_reco: 
         if config['Dmeson'] == 'Dzero':
@@ -241,7 +239,7 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, preprocessed=False, p
 
     if get_mc_gen: 
         print(f"Loading mc gen sparse from: {config['eff_filename']}")
-        infiletask = ROOT.TFile(config['eff_filename'])
+        infiletask = TFile(config['eff_filename'])
         if config['Dmeson'] == 'Dzero':
             axes_gen = {
                 'Pt': 0,

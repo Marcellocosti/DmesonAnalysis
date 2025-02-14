@@ -1,6 +1,6 @@
 '''
 python script for the computation of the fractions of prompt and feed-down D for all cutset
-run: python ComputeDataDrivenFraction.py --inputdir path/to/input --outputdir path/to/output --suffix text
+run: python ComputeDataDrivenFraction.py --cutvardir path/to/input --suffix text
 '''
 
 import argparse
@@ -12,31 +12,30 @@ from utils.AnalysisUtils import GetPromptFDFractionCutSet
 from utils.StyleFormatter import SetGlobalStyle
 
 
-def data_driven_frac(inputdir, outputdir, suffix, batch=False):
+def data_driven_frac(cutvardir, suffix, batch=False):
 
     gROOT.SetBatch(batch)
 
-    if os.path.exists(f'{inputdir}/eff'):
-        effFiles = [f'{inputdir}/eff/{file}'
-                    for file in os.listdir(f'{inputdir}/eff') if file.endswith('.root') and suffix in file]
+    if os.path.exists(f'{cutvardir}/eff'):
+        effFiles = [f'{cutvardir}/eff/{file}'
+                    for file in os.listdir(f'{cutvardir}/eff') if file.endswith('.root') and suffix in file]
     else:
-        raise ValueError(f'No eff folder found in {inputdir}')
+        raise ValueError(f'No eff folder found in {cutvardir}')
     
-    if os.path.exists(f'{inputdir}/CutVarFrac'):
-        fracFiles = [f'{inputdir}/CutVarFrac/{file}' 
-                     for file in os.listdir(f'{inputdir}/CutVarFrac') if file.endswith('.root') and suffix in file]
+    if os.path.exists(f'{cutvardir}/CutVarFrac'):
+        fracFilePath = next((f"{cutvardir}/CutVarFrac/{file}" for file in os.listdir(f"{cutvardir}/CutVarFrac") 
+                         if file.endswith(".root") and suffix in file), None)
     else:
-        raise ValueError(f'No CutVarFrac folder found in {inputdir}')
+        raise ValueError(f'No CutVarFrac folder found in {cutvardir}')
     
     effFiles.sort()
-    fracFiles.sort()
 
     for iFile, effFile in enumerate(effFiles):
         effFile = TFile.Open(effFile)
         hEffPrompt = effFile.Get('hEffPrompt')
         hEffFD = effFile.Get('hEffFD')
 
-        fracFile = TFile.Open(fracFiles[0])
+        fracFile = TFile.Open(fracFilePath)
         hCorrYieldPrompt = fracFile.Get('hCorrYieldPrompt')
         hCorrYieldFD = fracFile.Get('hCorrYieldFD')
         hCovPromptPrompt = fracFile.Get('hCovPromptPrompt')
@@ -121,8 +120,8 @@ def data_driven_frac(inputdir, outputdir, suffix, batch=False):
         legEff.Draw()
         cEff.Update()
         
-        os.makedirs(outputdir + '/DataDrivenFrac', exist_ok=True)
-        outFile = TFile(outputdir + '/DataDrivenFrac/' + f'DataDrivenFrac_{suffix}_{iFile:02}.root', 'recreate')
+        os.makedirs(cutvardir + '/DataDrivenFrac', exist_ok=True)
+        outFile = TFile(cutvardir + '/DataDrivenFrac/' + f'DataDrivenFrac_{suffix}_{iFile:02}.root', 'recreate')
         hEffPrompt.Write()
         hEffFD.Write()
         hPromptFrac.Write()
@@ -137,18 +136,15 @@ def data_driven_frac(inputdir, outputdir, suffix, batch=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Arguments')
-    parser.add_argument('--inputdir', '-i', metavar='text',
-                        default='.', help='input directory containing eff and frac files')
-    parser.add_argument("--outputdir", "-o", metavar="text",
-                        default=".", help="output directory")
+    parser.add_argument('--cutvardir', '-dir', metavar='text',
+                        default='.', help='directory of the cut variation output')
     parser.add_argument("--suffix", "-s", metavar="text",
                         default="", help="suffix for output files")
     parser.add_argument("--batch", '-b',action='store_true', help="run in batch mode")
     args = parser.parse_args()
 
     data_driven_frac(
-        args.inputdir,
-        args.outputdir,
+        args.cutvardir,
         args.suffix,
         args.batch
     )
