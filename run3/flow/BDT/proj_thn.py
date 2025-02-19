@@ -351,7 +351,7 @@ if __name__ == "__main__":
         reso = histo_reso.GetBinContent(1)
     
     outfile.cd()
-    histo_reso.Write('histo_reso_delta_cent', write_opt_cent_reso)
+    histo_reso.Write('hist_reso', write_opt_cent_reso)
     if create_new_file:
         outfile.mkdir(outfile_dir)
     outfile.cd(outfile_dir)
@@ -397,10 +397,12 @@ if __name__ == "__main__":
                     print('Taking pre-processed AnRes for data!')
                     if not args.systematics:
                         sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"].GetAxis(axes['Flow']['score_FD']).SetRangeUser(cutVars['score_FD']['min'][iPt], cutVars['score_FD']['max'][iPt])
+                        if 'score_bkg' in config['axestokeep']:
+                            print(f"Cutting on bkg on pre-processed AnRes!")
+                            sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"].GetAxis(axes['Flow']['score_bkg']).SetRangeUser(cutVars['score_bkg']['min'][iPt], cutVars['score_bkg']['max'][iPt])
                     proj_data(sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"], ptMin, ptMax, cent_min, cent_max, axes, config['inv_mass_bins'][iPt], reso, write_opt_data, args.systematics)
-                    outfile.cd(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}')
-                    print(f"Projected data!")
                     outfile.cd(ptcentdir)
+                    print(f"Projected data!")
 
                 else:
                     for iSparse, (key, sparse) in enumerate(sparsesFlow.items()):
