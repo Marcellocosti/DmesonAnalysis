@@ -159,7 +159,6 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
                 config_pre = yaml.safe_load(CfgPre)
 
             axes_dict['Flow'] = {ax: iax for iax, ax in enumerate(config_pre['axestokeep'])}
-            # print(f"preprocess_dir: {preprocess_dir}")
             for ptmin, ptmax in zip(config_pre['ptmins'], config_pre['ptmaxs']):
                 if systematics and iCut != '':
                     print(f"Loading flow sparse from file: {preprocess_dir}/pre_sys/AnRes/{iCut}/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
