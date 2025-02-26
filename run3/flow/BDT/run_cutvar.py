@@ -191,7 +191,6 @@ def run_full_cut_variation(config_flow,
 	# do the simulation fit to get the raw yields
 	if vn:
 		check_dir(f"{output_dir}/ry")
-		# SimFitPath = work_dir + "./../get_vn_vs_mass.py"
 		SimFitPath = os.path.join(work_dir, "./../get_vn_vs_mass.py")
 		# if config['Dmeson'] == 'Dplus' and config.get('IncludeTempls'):
 		# 	extract_template_weights(config_flow)

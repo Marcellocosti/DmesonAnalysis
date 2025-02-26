@@ -543,6 +543,8 @@ def get_vnfitter_results(vnFitter, secPeak, useRefl, useTempl, DrawVnComps):
         vn_results['fVnCompsFuncts']['vnSecPeak'] = vnComps[2]
     vn_results['fMassTemplFuncts'] = vnFitter.GetMassTemplFuncts()
     if useTempl:
+        vn_results['fVnCompsFuncts']['vnSgn'] = vnFitter.GetMassBkgFitFunc()
+        vn_results['fVnCompsFuncts']['vnBkg'] = vnFitter.GetMassBkgFitFunc()
         for iTempl in range(len(vn_results['fMassTemplFuncts'])):
             vn_results['fVnCompsFuncts'][f'vnTempl{iTempl}'] = vnComps[2+secPeak+iTempl]
     
@@ -815,7 +817,6 @@ def get_cut_sets(npt_bins, sig_cut, bkg_cut_maxs, correlated_cuts=True):
     if correlated_cuts:
         sig_cut_mins = sig_cut['min']
         sig_cut_maxs = sig_cut['max']
-        sig_cut_steps = sig_cut['step']
 
         # compute the signal cutsets for each pt bin
         sig_cuts_lower = [list(np.arange(sig_cut_mins[iPt], sig_cut_maxs[iPt], sig_cut_steps[iPt])) for iPt in range(npt_bins)]
@@ -977,7 +978,7 @@ def extract_template_weights(config):
     with open(config, 'r') as cfg:
         config = yaml.safe_load(cfg)
 
-    weights_file = TFile(config['weights_file'], 'recreate')
+    weights_file = TFile(config['WeightsFile'], 'recreate')
 
     templatesBRNorms = []
     if config['Dmeson'] == 'Dplus':
