@@ -82,12 +82,14 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files):
     avrV2XErrL, avrV2XErrH = [], []
 
     for fracFile, v2File in zip(fracFiles, v2Files):
+        print(f"v2File: {v2File}")
         inV2File = TFile.Open(v2File)
         hV2.append(inV2File.Get('hvnSimFit'))
         gV2.append(inV2File.Get('gvnSimFit'))
         hV2[-1].SetDirectory(0)
 
         inFracFile = TFile.Open(fracFile)
+        print(f"fracFile: {fracFile}")
         hFracFD.append(inFracFile.Get('hFDFrac'))
         hFracPrompt.append(inFracFile.Get('hPromptFrac'))
         hFracFD[-1].SetDirectory(0)
@@ -103,6 +105,8 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files):
     for iPt, (ptMin, ptMax) in enumerate(zip(ptmins, ptmaxs)):
         ptCent = (ptMin + ptMax) / 2
         nSets = CutSets[iPt]
+        print(f"nSets: {nSets}")
+        print(f"CutSets[iPt]: {CutSets[iPt]}")
 
         gFracVsV2.append(TGraphErrors(-1))
         hV2VsFrac.append(TH1D(f"hV2VsFrac_{iPt}", "", 1000, 0.0, 1.0))
@@ -110,6 +114,10 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files):
         SetObjectStyle(hV2VsFrac[-1], markerstyle=kFullCircle, markersize=0)
         SetObjectStyle(gFracVsV2[-1], linecolor=kAzure+4, linewidth=2, markerstyle=kFullCircle, markersize=1, markercolor=kAzure+4)
 
+        print(f"type(gV2[i]): {type(gV2[0])}")
+        print(f"gV2: {gV2}")
+        print(f"len(gV2): {len(gV2)}")
+        print(f"range(nSets): {range(nSets)}")
         avrV2XErrL.append(Double_t(sum(gV2[i].GetErrorXlow(iPt) for i in range(nSets)) / nSets))
         avrV2XErrH.append(Double_t(sum(gV2[i].GetErrorXhigh(iPt) for i in range(nSets)) / nSets))
         

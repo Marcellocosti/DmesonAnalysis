@@ -951,18 +951,56 @@ def cut_var_image_merger(config, cut_var_dir, suffix):
 
         print(f"Saved {num_pages} high-quality multipanel images in '{output_folder}'.")
 
-    cutvar_files = [
-        f"{cut_var_dir}/CutVarFrac/CutVarFrac_{suffix}_CorrMatrix.pdf", 
-        f"{cut_var_dir}/CutVarFrac/CutVarFrac_{suffix}_Distr.pdf", 
-        f"{cut_var_dir}/CutVarFrac/CutVarFrac_{suffix}_Eff.pdf", 
-        f"{cut_var_dir}/CutVarFrac/CutVarFrac_{suffix}_Frac.pdf",
-        f"{cut_var_dir}/V2VsFrac/FracV2_{suffix}.pdf"
-    ]
-    
-    try:
-        process_pdfs(config, cutvar_files, f"{cut_var_dir}/merged_images/cutvar", 'cutvar_summary')
-    except:
-        print("Error in merging cut variation files")
+    def add_fifth_panel(folder, suffix, direction="horizontal"):
+        """
+        Adds a fifth panel to a 4-image figure.
+
+        :param four_panel_img: Path to the original 4-panel image (PNG).
+        :param new_img: Path to the new image to be added as the fifth panel.
+        :param output_img: Path to save the final 5-panel image.
+        :param direction: "horizontal" to append side-by-side, "vertical" to stack.
+        """
+        def get_files_starting_with(folder):
+            """ Get all files in a folder starting with a specific character """
+            search_pattern = os.path.join(f"{folder}/CutVarFrac/", "FinalResPt*.png")  # Pattern: 'A*'
+            files = glob.glob(search_pattern)
+            return files
+        
+        fraction_files = fitz.open(f"{folder}/V2VsFrac/FracV2_{suffix}.pdf")
+        cut_var_plots = get_files_starting_with(folder)
+        print(f"cut_var_plots: {cut_var_plots}")
+        for iPt, cut_var_pt_plot in enumerate(cut_var_plots):
+            img1 = Image.open(cut_var_pt_plot)
+            page = fraction_files[iPt]  # Get the first page
+            pix = page.get_pixmap(dpi=300)  # Convert to a high-res image
+            img2_path = f"temp_image_{iPt}.png"
+            pix.save(img2_path)  # Save the image temporarily
+            img2 = Image.open(img2_path)  # Open the temporary image file
+            os.remove(img2_path)  # Optionally, delete the temporary image file
+
+
+            # Ensure both images have the same height (for horizontal) or width (for vertical)
+            if direction == "horizontal":
+                img2 = img2.resize((img1.height, img1.height))  # Make square to match height
+                new_width = img1.width + img2.width
+                new_height = img1.height
+                new_img = Image.new("RGB", (new_width, new_height))
+                new_img.paste(img1, (0, 0))
+                new_img.paste(img2, (img1.width, 0))
+            else:  # Vertical stacking
+                img2 = img2.resize((img1.width, img1.width))  # Make square to match width
+                new_width = img1.width
+                new_height = img1.height + img2.height
+                new_img = Image.new("RGB", (new_width, new_height))
+                new_img.paste(img1, (0, 0))
+                new_img.paste(img2, (0, img1.height))
+
+            # Save the new image
+            os.makedirs(f"{folder}/merged_images/cutvar_summary", exist_ok=True)
+            new_img.save(f"{folder}/merged_images/cutvar_summary/CutVarV2Frac_pt_{int(config['ptmins'][iPt]*10)}_{int(config['ptmaxs'][iPt]*10)}.png")
+
+    # Example usage
+    add_fifth_panel(f"{cut_var_dir}/", suffix)
     
     try:
         fit_files = glob.glob(f"{cut_var_dir}/ry/*.pdf")

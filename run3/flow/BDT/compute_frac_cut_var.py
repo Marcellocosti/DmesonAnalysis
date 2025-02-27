@@ -308,6 +308,7 @@ def minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, output
         hCorrMatrixCutSets[iPt].Write()
     outFile.Close()
 
+    print(f"Saving to: {outputdir}/CutVarFrac/FinalResPt_{suffix}.pdf")
     for iPt in range(len(ptmins)):
         if iPt == 0:
             cFinalResPt[iPt].SaveAs(f'{outputdir}/{directory}/FinalResPt_{suffix}.pdf[')
