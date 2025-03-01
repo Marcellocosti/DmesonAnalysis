@@ -157,15 +157,11 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
             # TODO: the path of config_pre is in config_flow, hte path of the AnRes files pre-processed is in config_pre
             with open(config_pre_path, 'r') as CfgPre:
                 config_pre = yaml.safe_load(CfgPre)
-
-            axes_dict['Flow'] = {ax: iax for iax, ax in enumerate(config_pre['axestokeep'])}
-            for ptmin, ptmax in zip(config_pre['ptmins'], config_pre['ptmaxs']):
-                if systematics and iCut != '':
-                    print(f"Loading flow sparse from file: {preprocess_dir}/pre_sys/AnRes/{iCut}/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
-                    infileflow = TFile(f"{preprocess_dir}/pre_sys/AnRes/{iCut}/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
-                else:
-                    print(f"Loading flow sparse from file: {preprocess_dir}/pre/AnRes/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
-                    infileflow = TFile(f"{preprocess_dir}/pre/AnRes/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
+            # if config_pre['ptmins'] != config['ptmins'] or config_pre['ptmaxs'] != config['ptmaxs']:
+            #     raise ValueError("Error: ptmins and ptmaxs in config_pre.yaml do not match the ones in the config.yaml")
+            for ptmin, ptmax in zip(config['ptmins'], config['ptmaxs']):
+                print(f"Loading flow sparse from file: {preprocess_dir}/pre/AnRes/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
+                infileflow = TFile(f"{preprocess_dir}/pre/AnRes/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
                 sparsesFlow[f'Flow_{ptmin*10}_{ptmax*10}'] = infileflow.Get('hf-task-flow-charm-hadrons/hSparseFlowCharm')
                 infileflow.Close()
         else:

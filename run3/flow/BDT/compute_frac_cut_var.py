@@ -16,6 +16,41 @@ from flow_analysis_utils import get_cut_sets_config
 from utils.StyleFormatter import SetGlobalStyle, SetObjectStyle
 from utils.AnalysisUtils import GetPromptFDYieldsAnalyticMinimisation
 
+def clean_redundant_cuts(listEffPrompt, listEffFD, listRawYield, listEffPromptUnc, listEffFDUnc, listRawYieldUnc):
+    listEffPrompt_unique = [key for key, _ in groupby(listEffPrompt)]
+    indicesPromptUniqueEffs = [listEffPrompt.index(value) for value in listEffPrompt_unique]
+    
+    listEffFD_unique = [key for key, _ in groupby(listEffFD)]
+    indicesFDUniqueEffs = [listEffFD.index(value) for value in listEffFD_unique]
+
+    # get indices of cuts which have different Prompt and FD efficiency
+    commonIndices = list(set(indicesPromptUniqueEffs) & set(indicesFDUniqueEffs))
+    
+    for iCut in range(len(listEffPrompt)):
+        if iCut not in commonIndices:
+            print(f'\033[93mWARNING: Removing cutset {iCut} from system minimization!\033[0m')
+    
+    listEffPrompt_unique = [listEffPrompt[i] for i in commonIndices]
+    listEffFD_unique = [listEffFD[i] for i in commonIndices]
+    
+    filtered_data = [
+        (ep, ef, ry, ep_unc, ef_unc, ry_unc)
+        for i, (ep, ef, ry, ep_unc, ef_unc, ry_unc) in enumerate(zip(
+            listEffPrompt, listEffFD, listRawYield, listEffPromptUnc, listEffFDUnc, listRawYieldUnc
+        )) if i in commonIndices and ep >= 1.e-10 and ef >= 1.e-10 and ry >= 1.e-10
+    ]
+
+    if not filtered_data:  # Ensure no empty zip unpacking
+        return [], [], [], [], [], []
+
+    # Unpack into separate lists
+    listEffPrompt_filtered, listEffFD_filtered, listRawYield_filtered, \
+    listEffPromptUnc_filtered, listEffFDUnc_filtered, listRawYieldUnc_filtered = zip(*filtered_data)
+
+    # Convert back to lists
+    return (list(listEffPrompt_filtered), list(listEffFD_filtered), list(listRawYield_filtered),
+            list(listEffPromptUnc_filtered), list(listEffFDUnc_filtered), list(listRawYieldUnc_filtered))
+
 def minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, outputdir, suffix, systematics):
 
     hRawYieldsVsCut, hRawYieldsVsCutReSum, hRawYieldPromptVsCut, hRawYieldFDVsCut = [], [], [], []

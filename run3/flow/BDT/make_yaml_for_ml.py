@@ -8,7 +8,9 @@ import argparse
 import os
 import numpy as np
 import sys
-sys.path.append('..')
+script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script's directory
+sys.path.append(os.path.abspath(os.path.join(script_dir, '..')))  # Append parent directory
+
 from flow_analysis_utils import get_cut_sets_config
 
 def make_combination(ptmins, ptmaxs, nCutSets, sig_cut_lower_file, 

@@ -167,10 +167,13 @@ def check_frac_variation_range(infiles, outputdir):
     tfile_forptbins = TFile.Open(infiles[0])
     ptmins = []
     ptmaxs = []
+    pt_bin_edges = [1.]
     hRef = tfile_forptbins.Get('hV2VsPtPrompt')
     for ibin in range(1, hRef.GetNbinsX()+1):
+        pt_bin_edges.append(hRef.GetXaxis().GetBinLowEdge(ibin) + hRef.GetXaxis().GetBinWidth(ibin)) 
         ptmins.append(int(hRef.GetXaxis().GetBinLowEdge(ibin) * 10))  # Convert to integer
         ptmaxs.append(int((hRef.GetXaxis().GetBinLowEdge(ibin) + hRef.GetXaxis().GetBinWidth(ibin)) * 10))
+    pt_bin_edges = array.array('d', pt_bin_edges)
 
     cAllPtFracs = []
     gSinglePtAllFracs = [] 
@@ -181,8 +184,24 @@ def check_frac_variation_range(infiles, outputdir):
         gSinglePtAllFracs.append(TMultiGraph(f"gFrac_pt_{ptmin}_{ptmax};cutset;fFD", ""))
         legends.append(TLegend(0.7, 0.7, 0.9, 0.9))  # Legend position
 
+    histosPromptEnhanced = []
+    histosFDEnhanced = []
+    legendsPromptFDEnhanced = TLegend(0.7, 0.4, 0.9, 0.7)
+    cAllPtPromptNonPromptEnhanced = TCanvas(f"cFrac_pt_{ptmin}_{ptmax};p_T;fFD", "", 800, 600)
     for ifile, file in enumerate(infiles):
         tfile = TFile.Open(file)
+        var_suffix = os.path.basename(file).replace("V2VsFrac_", "").replace(".root", "")
+
+        print(f"pt_bin_edges: {pt_bin_edges}")
+        print(f"len(pt_bin_edges): {len(pt_bin_edges)}")
+        histoFDEnhanced = TH1F(f"hFDEnhanced{var_suffix}", ";#it{M}(K#pi#pi) (GeV/#it{c})", len(pt_bin_edges)-1, pt_bin_edges)
+        SetObjectStyle(histoFDEnhanced, color=cols[ifile], fillcolor=cols[ifile], markerstyle=kFullSquare, markersize=2, linewidth=2, fillalpha=0.2)
+        legendsPromptFDEnhanced.AddEntry(histoFDEnhanced, f"{var_suffix}, FD", "LP")
+        
+        histoPromptEnhanced = TH1F(f"hPromptEnhanced{var_suffix}", ";#it{M}(K#pi#pi) (GeV/#it{c})", len(pt_bin_edges)-1, pt_bin_edges)
+        SetObjectStyle(histoPromptEnhanced, color=cols[ifile], fillcolor=cols[ifile], markerstyle=kFullCircle, markersize=2, linewidth=2, fillalpha=0.2)
+        legendsPromptFDEnhanced.AddEntry(histoPromptEnhanced, f"{var_suffix}, Prompt", "LP")
+
         if not tfile or tfile.IsZombie():
             print(f"Error: Cannot open file {file}")
             continue
@@ -191,6 +210,8 @@ def check_frac_variation_range(infiles, outputdir):
             gFracPt = tfile.Get(f'pt_{ptmin}_{ptmax}/gV2VsFrac')
             x_values = gFracPt.GetX()
             frac_values = [x_values[i] for i in range(gFracPt.GetN())]
+            histoFDEnhanced.SetBinContent(iPt+1, frac_values[-1])
+            histoPromptEnhanced.SetBinContent(iPt+1, frac_values[0])
 
             graph = TGraphErrors(gFracPt.GetN(), array.array('d', range(len(frac_values))), array.array('d', frac_values))
             graph.SetMarkerColor(ifile + 1)  # Different color for each file
@@ -199,7 +220,11 @@ def check_frac_variation_range(infiles, outputdir):
             graph.SetMarkerStyle(20)
 
             gSinglePtAllFracs[iPt].Add(graph, "LP")
-            legends[iPt].AddEntry(graph, os.path.basename(file).replace("V2VsFrac_", "").replace(".root", ""), "LP")
+            legends[iPt].AddEntry(graph, var_suffix, "LP")
+
+        cAllPtPromptNonPromptEnhanced.cd()
+        histoPromptEnhanced.Draw("same")
+        histoFDEnhanced.Draw("same")
 
     # Save to ROOT file
     FracScanFile = TFile(f'{outputdir}/FracVariations.root', 'recreate')
@@ -212,6 +237,11 @@ def check_frac_variation_range(infiles, outputdir):
         gSinglePtAllFracs[iPt].Write()
         cAllPtFracs[iPt].SetLogy()
         cAllPtFracs[iPt].Write()
+
+    cAllPtPromptNonPromptEnhanced.cd()
+    legendsPromptFDEnhanced.Draw()
+    FracScanFile.cd()
+    cAllPtPromptNonPromptEnhanced.Write()
 
     FracScanFile.Close()
 

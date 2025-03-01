@@ -951,7 +951,7 @@ def cut_var_image_merger(config, cut_var_dir, suffix):
 
         print(f"Saved {num_pages} high-quality multipanel images in '{output_folder}'.")
 
-    def add_fifth_panel(folder, suffix, direction="horizontal"):
+    def addV2VsFracToCutVarQA(folder, suffix, direction="horizontal"):
         """
         Adds a fifth panel to a 4-image figure.
 
@@ -968,8 +968,10 @@ def cut_var_image_merger(config, cut_var_dir, suffix):
         
         fraction_files = fitz.open(f"{folder}/V2VsFrac/FracV2_{suffix}.pdf")
         cut_var_plots = get_files_starting_with(folder)
-        print(f"cut_var_plots: {cut_var_plots}")
-        for iPt, cut_var_pt_plot in enumerate(cut_var_plots):
+        cut_var_plots_sorted = sorted(cut_var_plots, key=lambda x: (float(re.search(r'pt(\d+\.\d+)_(\d+\.\d+)', x).group(1)),
+                                                           float(re.search(r'pt(\d+\.\d+)_(\d+\.\d+)', x).group(2))))
+
+        for iPt, cut_var_pt_plot in enumerate(cut_var_plots_sorted):
             img1 = Image.open(cut_var_pt_plot)
             page = fraction_files[iPt]  # Get the first page
             pix = page.get_pixmap(dpi=300)  # Convert to a high-res image
@@ -1000,7 +1002,10 @@ def cut_var_image_merger(config, cut_var_dir, suffix):
             new_img.save(f"{folder}/merged_images/cutvar_summary/CutVarV2Frac_pt_{int(config['ptmins'][iPt]*10)}_{int(config['ptmaxs'][iPt]*10)}.png")
 
     # Example usage
-    add_fifth_panel(f"{cut_var_dir}/", suffix)
+    try:
+        addV2VsFracToCutVarQA(f"{cut_var_dir}/", suffix)
+    except:
+        print("Error in merging cutvar files")
     
     try:
         fit_files = glob.glob(f"{cut_var_dir}/ry/*.pdf")
@@ -1034,6 +1039,7 @@ def extract_template_weights(config):
         
         # Reweight contributions with (BR_PDG / BR_MC)
         
+        BRDStarTotMC = 1
         BRDplusTotMC = 0.0752 + 0.0104 + 0.0156 + 0.0752
         BRDplusKPiPiMC = 0.0752 + 0.0156 + 0.0104
         BRDplusKKPiMC = 0.0752
@@ -1048,6 +1054,9 @@ def extract_template_weights(config):
                 templatesBRNorms.append( (BRDsKKPiPDG / BRDsKKPiMC) * 1.25)
             elif templ == "DplusKKPi":
                 templatesBRNorms.append(BRDplusKKPiPDG / (BRDplusKKPiMC / BRDplusTotMC))
+            elif templ == "DStar":
+                # the decay table of D* is not modified in the MC
+                templatesBRNorms.append(1.)
             else:
                 templatesBRNorms.append(1.)
         signalBRNorm = BRDplusKPiPiPDG / (BRDplusKPiPiMC / BRDplusTotMC)
@@ -1067,7 +1076,6 @@ def extract_template_weights(config):
             df = pd.concat([df for df in templDfs], axis=1).query(query)
             templatesDfs.append(df)
 
-
         signalDfs = []
         for iTable in config["TemplsTreeNames"]:
             singleTableDfs = []
@@ -1082,13 +1090,15 @@ def extract_template_weights(config):
     templatesYieldsDfs = [signalDf] + templatesDfs 
     templatesYieldsNames = ["Signal"] + config['TemplsNames']
     templatesBRNorms = [signalBRNorm] + templatesBRNorms
-    config_files = [f for f in os.listdir(f"{config['out_dir']}/cutvar_{config['suffix']}/config/") if os.path.isfile(os.path.join(f"{config['out_dir']}/cutvar_{config['suffix']}/config/", f))]
+    config_files = [f for f in os.listdir(f"{config['out_dir']}/config/") if os.path.isfile(os.path.join(f"{config['out_dir']}/config/", f))]
+    # config_files = [f for f in os.listdir(f"{config['out_dir']}/cutvar_{config['suffix']}/config/") if os.path.isfile(os.path.join(f"{config['out_dir']}/cutvar_{config['suffix']}/config/", f))]
     print(f"config_files: {config_files}")
     for config_file in config_files:
         match = re.search(r"(\d+)\.yml$", os.path.basename(config_file))
         if match:
             cutset = match.group(1)
-        with open(f"{config['out_dir']}/cutvar_{config['suffix']}/config/{config_file}", 'r') as cfg:
+        with open(f"{config['out_dir']}/config/{config_file}", 'r') as cfg:
+        # with open(f"{config['out_dir']}/cutvar_{config['suffix']}/config/{config_file}", 'r') as cfg:
             config_cut = yaml.safe_load(cfg)
 
         for iTemplate, (templName, templDf, BRnorm) in enumerate(zip(templatesYieldsNames, templatesYieldsDfs, templatesBRNorms)):
@@ -1126,14 +1136,16 @@ def extract_template_weights(config):
                 h_templ_yields_raw = weights_file.Get(f"cutset_{cutset}/{templName}/pt_{ptmin}_{ptmax}/h{templName}Raw")        
             
                 h_templ_yields_BR_eff_rew_first_templ = h_templ_yields_raw.Clone(f"h{templName}_BR_eff_rew_first_templ")        
-                h_templ_yields_BR_eff_rew_first_templ.Scale(h_templ_yields_BR_rew.Integral() / h_first_templ_yields_BR_rew.Integral())        
+                if h_first_templ_yields_BR_rew.Integral() > 0:
+                    h_templ_yields_BR_eff_rew_first_templ.Scale(h_templ_yields_BR_rew.Integral() / h_first_templ_yields_BR_rew.Integral())        
+                    hist_weights_firsttempl_templ.SetBinContent(iPt+1, h_templ_yields_BR_rew.Integral() / h_first_templ_yields_BR_rew.Integral() )
                 h_templ_yields_BR_eff_rew_first_templ.Write(f"h{templName}_BR_eff_rew_first_templ")
-                hist_weights_firsttempl_templ.SetBinContent(iPt+1, h_templ_yields_BR_rew.Integral() / h_first_templ_yields_BR_rew.Integral() )
             
                 h_templ_yields_BR_eff_rew_sgn = h_templ_yields_raw.Clone(f"h{templName}_BR_eff_rew_signal")        
-                h_templ_yields_BR_eff_rew_sgn.Scale(h_templ_yields_BR_rew.Integral() / h_signal_yields_BR_rew.Integral())        
+                if h_signal_yields_BR_rew.Integral() > 0:
+                    h_templ_yields_BR_eff_rew_sgn.Scale(h_templ_yields_BR_rew.Integral() / h_signal_yields_BR_rew.Integral())        
+                    hist_weights_sgn_templ.SetBinContent(iPt+1, h_templ_yields_BR_rew.Integral() / h_signal_yields_BR_rew.Integral() )
                 h_templ_yields_BR_eff_rew_sgn.Write(f"h{templName}_BR_eff_rew_signal")
-                hist_weights_sgn_templ.SetBinContent(iPt+1, h_templ_yields_BR_rew.Integral() / h_signal_yields_BR_rew.Integral() )
 
             weights_file.mkdir(f"cutset_{cutset}/{templName}/Weights/")
             weights_file.cd(f"cutset_{cutset}/{templName}/Weights/")

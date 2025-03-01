@@ -33,6 +33,8 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
             if not syst:
                 hist_fd_temp = sparse.Projection(axes['Flow']['score_FD'])
                 hist_fd_temp.SetName(f'hist_fd_cent{cent_min}_{cent_max}_pt{ptMin}_{ptMax}_{isparse}')
+                hist_bkg_temp = sparse.Projection(axes['Flow']['score_bkg'])
+                hist_bkg_temp.SetName(f'hist_bkg_cent{cent_min}_{cent_max}_pt{ptMin}_{ptMax}_{isparse}')
 
             if isparse == 0:
                 hist_mass = hist_mass_temp.Clone('hist_mass')
@@ -46,7 +48,8 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
             hist_mass.Add(hist_mass_temp)
             if not syst:
                 hist_fd.Add(hist_fd_temp)
-
+                hist_bkg.Add(hist_bkg_temp)
+            
         hist_vn_sp = get_vn_versus_mass(list(sparse_flow.values()), inv_mass_bins, axes['Flow']['Mass'], axes['Flow']['sp'])
         hist_vn_sp.SetDirectory(0)
         if reso > 0:
@@ -57,6 +60,8 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
         if not syst:
             hist_fd = sparse_flow.Projection(axes['Flow']['score_FD'])
             hist_fd.SetDirectory(0)
+            hist_bkg = sparse_flow.Projection(axes['Flow']['score_bkg'])
+            hist_bkg.SetDirectory(0)
         hist_vn_sp = get_vn_versus_mass(sparse_flow, inv_mass_bins, axes['Flow']['Mass'], axes['Flow']['sp'])
         hist_vn_sp.SetDirectory(0)
         if reso > 0:
@@ -68,6 +73,7 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
     hist_vn_sp.Write(f'hist_vn_sp_pt{ptMin}_{ptMax}', writeopt)
     if not syst:
         hist_fd.Write(f'hist_fd_cent{cent_min}_{cent_max}_pt{ptMin}_{ptMax}', writeopt)
+        hist_bkg.Write(f'hist_bkg_cent{cent_min}_{cent_max}_pt{ptMin}_{ptMax}', writeopt)
 
 def proj_mc_reco(sparsesReco, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights, sPtWeightsB, writeopt):
     
