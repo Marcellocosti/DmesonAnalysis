@@ -147,8 +147,9 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
     sparsesFlow, sparsesReco, sparsesGen, axes_dict = {}, {}, {}, {}    
     
     if get_data:
+        print(f"Loading data sparses")
         if preprocessed:
-            
+            print("Loading preprocessed data")
             if systematics:
                 config_pre_path = f"{preprocess_dir}/pre_sys/AnRes/config_pre.yml"
             else:
@@ -159,12 +160,20 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
                 config_pre = yaml.safe_load(CfgPre)
             # if config_pre['ptmins'] != config['ptmins'] or config_pre['ptmaxs'] != config['ptmaxs']:
             #     raise ValueError("Error: ptmins and ptmaxs in config_pre.yaml do not match the ones in the config.yaml")
+            axes_dict['Flow'] = {ax: iax for iax, ax in enumerate(config_pre['axestokeep'])}
             for ptmin, ptmax in zip(config['ptmins'], config['ptmaxs']):
-                print(f"Loading flow sparse from file: {preprocess_dir}/pre/AnRes/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
-                infileflow = TFile(f"{preprocess_dir}/pre/AnRes/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
+                print(f"preprocess_dir: {preprocess_dir}")
+                print(f"Systematics: {systematics}")
+                if systematics:
+                    print(f"Loading flow sparse from file: {preprocess_dir}/pre_sys/AnRes/{iCut}/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
+                    infileflow = TFile(f"{preprocess_dir}/pre_sys/AnRes/{iCut}/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
+                else:
+                    print(f"Loading flow sparse from file: {preprocess_dir}/pre/AnRes/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
+                    infileflow = TFile(f"{preprocess_dir}/pre/AnRes/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root")
                 sparsesFlow[f'Flow_{ptmin*10}_{ptmax*10}'] = infileflow.Get('hf-task-flow-charm-hadrons/hSparseFlowCharm')
                 infileflow.Close()
         else:
+            print("Loading raw data")
             axes_dict['Flow'] = {
                 'Mass': 0,
                 'Pt': 1,
@@ -176,6 +185,7 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
             }
             # REVIEW: I would suggest to separete the config_flow and config_pre
             # and load the flow files from the arguments
+            print(f"anres_files: {anres_files}")
             for ifile, file in enumerate(anres_files):
                 print(f"Loading flow sparse from file: {file}")
                 infileflow = TFile(file)

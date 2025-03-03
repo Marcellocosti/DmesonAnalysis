@@ -52,12 +52,12 @@ python3 /home/wuct/ALICE/local/DmesonAnalysis/run3/flow/BDT/run_cutvar.py ${outp
 # multi-trails
 ########################################
 
-# --do_proj_mc actually means do not project MC
+# --do_proj_data actually means do not project MC
 parallel_func() {
     config_file=$1
     suffix=$(basename $config_file .yml)
     echo "suffix: $suffix"
-    python3 /home/wuct/ALICE/local/DmesonAnalysis/run3/flow/BDT/run_cutvar.py $config_file --use_preprocessed --do_projections --do_proj_mc --do_vn --do_data_driven_frac --do_v2_vs_frac --do_merge_images --do_sys_trail
+    python3 /home/wuct/ALICE/local/DmesonAnalysis/run3/flow/BDT/run_cutvar.py $config_file --use_preprocessed --do_projections --do_proj_data --do_vn --do_data_driven_frac --do_v2_vs_frac --do_merge_images --do_sys_trail
 }
 export -f parallel_func
 

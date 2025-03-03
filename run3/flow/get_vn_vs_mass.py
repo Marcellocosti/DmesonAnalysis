@@ -24,10 +24,9 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 gInterpreter.ProcessLine(f'#include "{script_dir}/invmassfitter/InvMassFitter.cxx"')
 gInterpreter.ProcessLine(f'#include "{script_dir}/invmassfitter/VnVsMassFitter.cxx"')
 from ROOT import InvMassFitter, VnVsMassFitter
-from flow_analysis_utils import extract_template_weights
 from utils.StyleFormatter import SetGlobalStyle, SetObjectStyle, DivideCanvas
 from utils.FitUtils import SingleGaus, DoubleGaus, DoublePeakSingleGaus, DoublePeakDoubleGaus, RebinHisto
-from template_producer import templ_producer_kde, templ_producer_histo
+from template_producer import templ_producer_kde
 
 def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                    outputdir, suffix, vn_method, batch):
@@ -138,21 +137,12 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
         templatesFile = TFile(f'{outputdir}/Templates_{cut_var_suffix}.root', 'recreate')
         Templates = [[None]*len(fitConfig['TemplsNames']) for _ in range(len(ptMins))]
         TemplatesFuncts = [[None]*len(fitConfig['TemplsNames']) for _ in range(len(ptMins))]
-        templatesDfs = []
-        with uproot.open(fitConfig['TemplsInputs']) as f:
-            for _ in range(len(fitConfig['TemplsNames'])):
-                dfsData = []
-                for tree_name in fitConfig['TemplsTreeNames']: 
-                    for key in f.keys():
-                        if tree_name in key:
-                            dfData = f[key].arrays(library='pd')
-                            dfsData.append(dfData)      
-                    templatesDfs.append(pd.concat([df for df in dfsData], ignore_index=True))
+        templatesDfs = [pd.read_parquet(templPath) for templPath in fitConfig['TemplsPaths']]
 
         for iPt, (bkgStr, sgnStr, bkgVnStr) in enumerate(zip(BkgFuncStr, SgnFuncStr, BkgFuncVnStr)):
             if fitConfig['TemplInputType'][iPt] == 'kde':
-                for iTempl, (df, query, name) in enumerate(zip(templatesDfs, fitConfig['TemplsQueries'], fitConfig['TemplsNames'])):
-                    Templates[iPt][iTempl], _, _ = templ_producer_kde(df, 'fM', ptMins[iPt], ptMaxs[iPt], query, name, templatesFile)
+                for iTempl, (df, name) in enumerate(zip(templatesDfs, fitConfig['TemplsNames'])):
+                    Templates[iPt][iTempl], _, _ = templ_producer_kde(df, ptMins[iPt], ptMaxs[iPt], name, templatesFile)
                     TemplatesFuncts[iPt][iTempl] = Templates[iPt][iTempl].GetFunction()
             else:
                 print(f'Provided setting for templates not implemented, templates for {ptMins[iPt]} <= pt < {ptMaxs[iPt]} bin will not be added!')

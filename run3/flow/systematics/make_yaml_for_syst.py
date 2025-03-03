@@ -267,6 +267,9 @@ def combination_fit_option(config_flow_name, cfg_flow, nPtBins, cfg_mod, output_
     flow_configs[config_flow_name] = copy.deepcopy(cfg_flow)
     flow_configs_default_mass_bins[config_flow_name + '-default'] = copy.deepcopy(cfg_flow)
 
+    print(f"config_flow_name: {config_flow_name}")
+    print(f"fit_option_dict['Sigma']['FixSigma']: {fit_option_dict['Sigma']['FixSigma']}")
+    print(f'FixSigma: {fit_option_dict['Sigma']['FixSigma'] == 0}')
     # sigma upper, median, lower
     if fit_option_dict['Sigma']['FixSigma'] == 0:
         terms_FixSigma = [[0 for _ in range(nPtBins)] for _ in range(3)]
@@ -383,7 +386,7 @@ def slice_single_pt(flow_configs, nPtBins, fit_opts_dependent_pt, output_dir):
 def produce_pre_config(cfg_flow, cfg_mod, output_dir):
     
     pre_config_dict = {}
-    pre_config_dict['flow_files'] = cfg_flow['anresdir']
+    pre_config_dict['flow_files'] = cfg_flow['flow_files']
     pre_config_dict['ptmins'] = cfg_flow['ptmins']
     pre_config_dict['ptmaxs'] = cfg_flow['ptmaxs']
     pre_config_dict['centrality'] = cfg_flow['centrality']

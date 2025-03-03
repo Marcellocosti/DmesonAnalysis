@@ -141,6 +141,8 @@ def process_pt_bin_Singlecut(iPt, ptmin, ptmax, centMin, centMax, bkg_max_cut, s
 
     # add possibility to apply cuts for different variables
     processed_sparses = []
+    print(f"thnsparse_list: {thnsparse_list}")
+    # quit()
     for iThn, (sparse_key, sparse) in enumerate(thnsparse_list.items()):
         cloned_sparse = sparse.Clone()
         cloned_sparse.GetAxis(sparse_axes['Flow']['Pt']).SetRangeUser(ptmin, ptmax)
@@ -191,8 +193,10 @@ def pre_sys_process(config, ptmins, ptmaxs, centmin, centmax, axestokeep, output
     os.makedirs(f'{outputDir}/pre_sys/AnRes', exist_ok=True)
     
     # Load the ThnSparse
+    print(config)
     thnsparse_list, _, _, sparse_axes = get_sparses(config, True, False, False, config['flow_files'])
-
+    print("ciao")
+    print(f"thnsparse_list: {thnsparse_list}")
     bkg_cuts = config['bdt_cut']['bkg_cuts']
     sig_mins = config['bdt_cut']['sig_mins']
     sig_maxs = config['bdt_cut']['sig_maxs']
@@ -206,13 +210,14 @@ def pre_sys_process(config, ptmins, ptmaxs, centmin, centmax, axestokeep, output
     args = [(iPt, ptmin, ptmax, centmin, centmax, bkg_cuts[iPt], sig_mins[iPt], sig_maxs[iPt], thnsparse_list, sparse_axes, axestokeep, outputDir) for iPt, (ptmin, ptmax) in enumerate(zip(ptmins, ptmaxs))]
     with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
         tasks = executor.map(process_pt_bin_Singlecut, *zip(*args))
-        for result in tasks:
-            result
+        # for result in tasks:
+        #     result
 
     for iPt in range(len(ptmins)):
         if len(sig_mins[iPt]) < mCutset:
             available_file_index = len(sig_mins[iPt])
             for iCut in range(available_file_index, mCutset):
+                print(f'Copying the last available file {available_file_index-1} to {iCut}')
                 os.system(f'cp -r {outputDir}/pre_sys/AnRes/{(available_file_index-1):02d}/AnalysisResults_pt_{int(ptmins[iPt]*10)}_{int(ptmaxs[iPt]*10)}.root {outputDir}/pre_sys/AnRes/{iCut:02d}/')
     # with concurrent.futures.ThreadPoolExecutor(max_workers) as executor:
     #     tasks = [executor.submit(process_pt_bin_Singlecut, iPt, ptmin, ptmax, centmin, centmax, bkg_maxs[iPt], sig_mins[iPt], sig_maxs[iPt], thnsparse_list, sparse_axes, axestokeep, outputDir) for iPt, (ptmin, ptmax) in enumerate(zip(ptmins, ptmaxs))]
@@ -236,6 +241,7 @@ if __name__ == "__main__":
         print('Please specify the action to perform.')
         sys.exit(1)
 
+    print(f'Using configuration file: {args.config_pre}')
     with open(args.config_pre, 'r') as cfgPre:
         config = yaml.safe_load(cfgPre)
   
