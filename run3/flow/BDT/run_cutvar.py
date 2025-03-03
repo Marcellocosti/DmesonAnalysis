@@ -12,7 +12,6 @@ from ComputeDataDriFrac_flow import main_data_driven_frac
 from ComputeV2vsFDFrac import main_v2_vs_frac
 from concurrent.futures import ProcessPoolExecutor
 work_dir = os.path.dirname(os.path.realpath(__file__))
-from flow_analysis_utils import get_cut_sets_config, cut_var_image_merger
 from template_producer import extract_template_weights
 
 def check_dir(dir):
@@ -51,9 +50,10 @@ def run_full_cut_variation(config_flow,
 	output = config['out_dir'] 
 	suffix = config['suffix'] 
 	vn_method = config['vn_method']
-	n_workers = 1
-	# n_workers = config['nworkers']
+	# n_workers = 1
+	n_workers = config['nworkers']
 
+	print(f"config_flow: {config_flow}")
 	CutSets, _, _, _, _ = get_cut_sets_config(config_flow)
 	# REVIEW: uniformize the max cutsets variable
 	mCutSets = max(CutSets)
@@ -190,8 +190,10 @@ def run_full_cut_variation(config_flow,
 	if vn:
 		check_dir(f"{output_dir}/ry")
 		SimFitPath = os.path.join(work_dir, "./../get_vn_vs_mass.py")
-		# if config['Dmeson'] == 'Dplus' and config.get('IncludeTempls'):
-		# 	extract_template_weights(config_flow)
+		print("CIAOOOO")
+		if config['Dmeson'] == 'Dplus' and config.get('IncludeTempls'):
+			extract_template_weights(config_flow)
+		print("CIAOOO2")
 
 		print('EXTRACTED TEMPLATE WEIGHTS')
 		def run_simfit(i):
@@ -232,9 +234,10 @@ def run_full_cut_variation(config_flow,
 				print(f"\033[32mpython3 {DataDrivenFracPath} -i {output_dir} -o {output_dir} -s {suffix} -b\033[0m")
 				main_data_driven_frac(inputdir=output_dir, outputdir=output_dir, suffix=suffix, batch=True, combined=False)
 			else:
-			# which means this is for trails, or the reference combined method
+				# which means this is for trails, or the reference combined method
 				# correlatedCutVarPath was written in config TODO
-				correlatedCutVarPath = os.path.join('/'.join(output_dir.split('/')[:-3]), 'pre_sys/cutvar_corr')				
+				# correlatedCutVarPath = os.path.join('/'.join(output_dir.split('/')[:-3]), 'pre_sys/cutvar_corr')				
+				correlatedCutVarPath = config['correlatedPath']				
 				inputdir = os.path.join('/'.join(output_dir.split('/')[:-3]), 'pre_sys/cutvar_uncorr')
 				main_data_driven_frac(inputdir=inputdir, outputdir=output_dir, suffix=suffix, batch=True, combined=False, \
 										correlatedCutVarPath=correlatedCutVarPath, outputdir_combined='', systematics=True)

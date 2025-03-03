@@ -22,6 +22,7 @@ sys.path.append('../../..')
 
 def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, reso, writeopt, syst=False):
 
+    print(f"sparse_flow: {sparse_flow}")
     if isinstance(sparse_flow, dict):
         for isparse, (_, sparse) in enumerate(sparse_flow.items()):
             hist_mass_temp = sparse.Projection(axes['Flow']['Mass'])
@@ -53,7 +54,11 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
                 hist_fd.Add(hist_fd_temp)
                 hist_bkg.Add(hist_bkg_temp)
             
+        print(f"list(sparse_flow.values()): {list(sparse_flow.values())}")
+        print(f"axes['Flow']['Mass']: {axes['Flow']['Mass']}")
+        print(f"axes['Flow']['sp']: {axes['Flow']['sp']}")
         hist_vn_sp = get_vn_versus_mass(list(sparse_flow.values()), inv_mass_bins, axes['Flow']['Mass'], axes['Flow']['sp'])
+        quit()
         hist_vn_sp.SetDirectory(0)
         if reso > 0:
             hist_vn_sp.Scale(1./reso)
@@ -221,6 +226,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     print(f"args.pre_processed: {args.preprocessed}")
+    print(f"args.proj_data: {args.proj_data}")
+    print(f"args.proj_mc: {args.proj_mc}")
     with open(args.config, 'r') as ymlCfgFile:
         config = yaml.load(ymlCfgFile, yaml.FullLoader)
 
@@ -229,16 +236,19 @@ if __name__ == "__main__":
     cutVars = cutSetCfg['cutvars']
     cent, (cent_min, cent_max) = get_centrality_bins(args.centrality)
 
+    print(f"args.suffix: {args.suffix}")
     os.makedirs(f'{args.outputdir}/proj', exist_ok=True)
     outfilename = f'{args.outputdir}/proj/proj_{args.suffix}'
     create_new_file = True
     write_opt_data = 0
     write_opt_mc = 0
     write_opt_cent_reso = 0
-    if args.proj_data and args.proj_mc and not args.systematics:
+    if args.proj_data and args.proj_mc:
+        print(f"No existing previous projections, creating new file and project data and mc!")
         outfile = TFile(outfilename + '.root', 'RECREATE')
     else:
-        projFiles = [f'{outfilename}*.root' for file in os.listdir(f'{args.outputdir}/proj/') if file.endswith('.root')]
+        suffixCode = (args.suffix).split("_")[-1]
+        projFiles = [f'{outfilename}*' for file in os.listdir(f'{args.outputdir}/proj/') if file.endswith(f'_{suffixCode}.root')]
         if len(projFiles) == 0:
             print(f"No existing previous projections, creating new file and project data ({args.proj_data}) or mc ({args.proj_mc})!")
             outfile = TFile(outfilename + '.root', 'RECREATE')
@@ -255,6 +265,7 @@ if __name__ == "__main__":
 
     print(f"create_new_file: {create_new_file}")
     print(f"outfilename + '.root': {outfilename+ '.root'}")
+    # quit()
     outfile_dir = 'hf-candidate-creator-2prong' if config['Dmeson'] == 'Dzero' else 'hf-candidate-creator-3prong'
     infilemc = TFile.Open(config['eff_filename'], 'r')
     histo_cent = infilemc.Get(f'{outfile_dir}/hSelCollisionsCent')
@@ -289,9 +300,14 @@ if __name__ == "__main__":
 
     # load thnsparse
     # # REVIEW chuntai: 
-    # # for the main workflow, only the config_flow
+# # for the main workflow, only the config_flow
+    print(f"args.proj_data: {args.proj_data}")
+    print(f"args.proj_mc: {args.proj_mc}")
     sparsesFlow, sparsesReco, sparsesGen, axes = get_sparses(config, args.proj_data, args.proj_mc, args.proj_mc, config.get('anresdir', []), 
                                                              args.preprocessed, f'{config.get("skim_out_dir", "")}', args.systematics, iCut)
+    print(f"\n")
+    print(f"sparsesFlow: {sparsesFlow}")
+    print(f"\n")
     if not args.preprocessed:
         for key, iSparse in sparsesFlow.items():
             iSparse.GetAxis(axes['Flow']['cent']).SetRangeUser(cent_min, cent_max)
@@ -336,33 +352,8 @@ if __name__ == "__main__":
                     print("Projected data!")
             else:
                 print("Kept data from previous projections!")
-            
-            if args.systematics and not args.proj_mc:
-                mc_histos, mc_histos_names = [], []
-                cutsetConfig = args.cutsetConfig
-                icutset = f"{cutSetCfg['icutset']:02d}"
 
-                proj_file = cutsetConfig.replace('config', 'proj').replace(f'cutset_uncorr_{icutset}.yml', f'proj_uncorr_{icutset}.root')
-                
-                proj = TFile.Open(proj_file, 'read')
-                print(f"Opening {proj_file}")
-                proj.cd(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}')
-                histos = proj.GetDirectory(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}').GetListOfKeys()
-                print(f"histos: {histos}")
-                for histo in histos:
-                    print(f"histo: {histo.GetName()}")
-                    if 'hist' not in histo.GetName():
-                        mc_histos_names.append(histo.GetName())
-                        histo = histo.ReadObj() 
-                        mc_histos.append(histo)
-                        mc_histos[-1].SetDirectory(0)
-                proj.Close()
-                quit()
-                outfile.cd(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}')
-                for histo, name in zip(mc_histos, mc_histos_names):
-                    histo.Write(name)
-                print(f"Projected systematics!")
-            elif args.proj_mc:
+            if args.proj_mc:
                 for iVar in cutVars:
                     for key, iSparse in sparsesReco.items():
                         iSparse.GetAxis(axes[key][iVar]).SetRangeUser(cutVars[iVar]['min'][iPt], cutVars[iVar]['max'][iPt])
@@ -378,6 +369,33 @@ if __name__ == "__main__":
                 print("Projected mc gen!")
             else:
                 print("Kept mc from previous projections!")
+
+            # if args.systematics and not args.proj_mc:
+            # if args.systematics:
+            #     mc_histos, mc_histos_names = [], []
+            #     cutsetConfig = args.cutsetConfig
+            #     icutset = f"{cutSetCfg['icutset']:02d}"
+
+            #     proj_file = cutsetConfig.replace('config', 'proj').replace(f'cutset_uncorr_{icutset}.yml', f'proj_uncorr_{icutset}.root')
+                
+            #     proj = TFile.Open(proj_file, 'read')
+            #     print(f"Opening {proj_file}")
+            #     proj.cd(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}')
+            #     histos = proj.GetDirectory(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}').GetListOfKeys()
+            #     print(f"histos: {histos}")
+            #     for histo in histos:
+            #         print(f"histo: {histo.GetName()}")
+            #         if 'hist' not in histo.GetName():
+            #             mc_histos_names.append(histo.GetName())
+            #             histo = histo.ReadObj() 
+            #             mc_histos.append(histo)
+            #             mc_histos[-1].SetDirectory(0)
+            #     proj.Close()
+            #     # quit()
+            #     outfile.cd(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}')
+            #     for histo, name in zip(mc_histos, mc_histos_names):
+            #         histo.Write(name)
+            #     print(f"Projected systematics!")
 
             print('\n')
             bar()

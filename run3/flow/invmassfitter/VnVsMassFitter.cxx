@@ -236,12 +236,14 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
   DefineNumberOfParameters();
 
   const Int_t nparsmass = fNParsMassSgn+fNParsMassBkg+fNParsSec+fNParsRfl+fNParsTempls;
+  cout << "nparsmass: " << nparsmass << endl;
   Int_t NvnParsSgn = 1;
   if(fSecondPeak && fDoSecondPeakVn) {NvnParsSgn+=1;}
   if(fReflections && fVnRflOpt==kFreePar) {NvnParsSgn+=1;}
   Int_t NvnParsTempls = 0;
   if(!fTemplSameVnOfSignal) {NvnParsSgn+=fNParsTempls;}
   const Int_t nparsvn = nparsmass+fNParsVnBkg+NvnParsSgn+NvnParsTempls;
+  cout << "nparsvn: " << nparsvn << endl;
 
   Bool_t massprefit=MassPrefit();
   if(!massprefit) {printf("Impossible to perform the mass prefit"); return kFALSE;}
@@ -274,6 +276,7 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
   fVnTotFunc = new TF1("fVnTotFunc",this,&VnVsMassFitter::vnFunc,fMassMin,fMassMax,nparsvn,"VnVsMassFitter","vnFunc");
   SetParNames();
 
+  cout << "Setting up combined fit" << endl;
   ROOT::Math::WrappedMultiTF1 wfTotMass(*fMassTotFunc,1);
   ROOT::Math::WrappedMultiTF1 wfTotVn(*fVnTotFunc,1);
 
@@ -347,7 +350,9 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
   for(Int_t iPar=0; iPar<nparsvn; iPar++) {fitter.Config().ParSettings(iPar).SetName(fVnTotFunc->GetParName(iPar));}
   // fit FCN function directly
   // (specify optionally data size and flag to indicate that is a chi2 fit
+  cout << "Performing combined fit" << endl;
   Bool_t isFitOk = fitter.FitFCN(nparsvn,globalChi2,0,dataMass.Size()+dataVn.Size(),kFALSE);
+  cout << "isFitOk: " << isFitOk << endl;
   if(!isFitOk) return kFALSE;
 
   ROOT::Fit::FitResult result = fitter.Result();

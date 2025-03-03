@@ -216,6 +216,7 @@ def main_data_driven_frac(inputdir, outputdir, suffix, batch, combined=False, co
         effFiles = load_eff_files(inputdir)
         hEffPrompts, hEffFDs, hPromptFracs, hFDFracs, hPromptFracCorrs, hFDFracCorrs = load_eff_histos(effFiles)
         
+        print(f"correlatedCutVarPath: {correlatedCutVarPath}")
         cutVarFracFiles = load_cutVarFrac_files(correlatedCutVarPath)
         hCorrYieldPrompt, hCorrYieldFD, hCovPromptPrompt, hCovPromptFD, hCovFDFD = load_cutVarFrac_histos(cutVarFracFiles)
         

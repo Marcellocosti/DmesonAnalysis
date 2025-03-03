@@ -492,7 +492,7 @@ def modify_yaml_bdt(config_flow, config_mod, output_dir):
         cfg_comb['suffix'] = 'combined'
         cfg_comb['minimisation']['correlated'] = False
         cfg_comb['minimisation']['combined'] = True
-        cfg_comb['minimisation']['correlatedPath'] = f'{output_dir}/pre_sys/cutvar_corr'
+        # cfg_comb['minimisation']['correlatedPath'] = f'{output_dir}/pre_sys/cutvar_corr'
         yaml.dump(cfg_comb, f, default_flow_style=False)
     pass
 
@@ -505,11 +505,15 @@ if __name__ == "__main__":
                         help="multitrial systematics for BDT")
     args = parser.parse_args()
 
+    print(f"args.input_config: {args.input_config}")
+    print("CIAO MAKE YAML FOR SYST")
     if not args.multitrial_bdt:
+        print("MODIFY YAML")
         modify_yaml(args.input_config,
                     args.outputdir,
                     args.modifications_config)
     else:
+        print("MODIFY YAML BDT")
         modify_yaml_bdt(args.input_config,
                          args.modifications_config,
                          args.outputdir)

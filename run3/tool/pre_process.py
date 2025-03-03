@@ -106,6 +106,7 @@ def pre_process(config, ptmins, ptmaxs, centmin, centmax, axestokeep, outputDir)
     bkg_maxs = config['bkg_cuts']
     # Loop over each pt bin in parallel
     max_workers = 12 # hyperparameter
+    # max_workers = 40 # hyperparameter
     with concurrent.futures.ThreadPoolExecutor(max_workers) as executor:
         tasks = [executor.submit(process_pt_bin, ptmin, ptmax, centmin, centmax, bkg_maxs[iPt], thnsparse_list, axestokeep, outputDir) for iPt, (ptmin, ptmax) in enumerate(zip(ptmins, ptmaxs))]
         for task in concurrent.futures.as_completed(tasks):
@@ -146,7 +147,7 @@ def process_pt_bin_Singlecut(iPt, ptmin, ptmax, centMin, centMax, bkg_max_cut, s
     for iThn, (sparse_key, sparse) in enumerate(thnsparse_list.items()):
         cloned_sparse = sparse.Clone()
         cloned_sparse.GetAxis(sparse_axes['Flow']['Pt']).SetRangeUser(ptmin, ptmax)
-        cloned_sparse.GetAxis(sparse_axes['Flow']['cent']).SetRangeUser(centMin, centMax)
+        # cloned_sparse.GetAxis(sparse_axes['Flow']['cent']).SetRangeUser(centMin, centMax)
         cloned_sparse.GetAxis(sparse_axes['Flow']['score_bkg']).SetRangeUser(0, bkg_max_cut)
         
         temp_thn_projs = []
@@ -205,8 +206,11 @@ def pre_sys_process(config, ptmins, ptmaxs, centmin, centmax, axestokeep, output
     for iCut in range(mCutset):
         os.makedirs(f'{outputDir}/pre_sys/AnRes/{iCut:02d}', exist_ok=True)
 
+    for sparse in thnsparse_list.values():
+        sparse.GetAxis(sparse_axes['Flow']['cent']).SetRangeUser(centMin, centMax)
     # Loop over each pt bin in parallel
-    max_workers = 12 # hyperparameter
+    # max_workers = 12 # hyperparameter
+    max_workers = 30 # hyperparameter
     args = [(iPt, ptmin, ptmax, centmin, centmax, bkg_cuts[iPt], sig_mins[iPt], sig_maxs[iPt], thnsparse_list, sparse_axes, axestokeep, outputDir) for iPt, (ptmin, ptmax) in enumerate(zip(ptmins, ptmaxs))]
     with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
         tasks = executor.map(process_pt_bin_Singlecut, *zip(*args))

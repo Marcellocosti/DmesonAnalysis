@@ -813,8 +813,10 @@ def get_cut_sets(npt_bins, sig_cut, bkg_cut_maxs, correlated_cuts=True):
     nCutSets = []
     sig_cuts_lower, sig_cuts_upper, bkg_cuts_lower, bkg_cuts_upper = {}, {}, {}, {}
     if correlated_cuts:
+        print(f"sig_cut: {sig_cut}")
         sig_cut_mins = sig_cut['min']
         sig_cut_maxs = sig_cut['max']
+        sig_cut_steps = sig_cut['step']
 
         # compute the signal cutsets for each pt bin
         sig_cuts_lower = [list(np.arange(sig_cut_mins[iPt], sig_cut_maxs[iPt], sig_cut_steps[iPt])) for iPt in range(npt_bins)]

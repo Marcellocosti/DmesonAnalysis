@@ -142,7 +142,13 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
         for iPt, (bkgStr, sgnStr, bkgVnStr) in enumerate(zip(BkgFuncStr, SgnFuncStr, BkgFuncVnStr)):
             if fitConfig['TemplInputType'][iPt] == 'kde':
                 for iTempl, (df, name) in enumerate(zip(templatesDfs, fitConfig['TemplsNames'])):
-                    Templates[iPt][iTempl], _, _ = templ_producer_kde(df, ptMins[iPt], ptMaxs[iPt], name, templatesFile)
+                    if fitConfig.get('score_bkg') and fitConfig.get('score_FD'):
+                        Templates[iPt][iTempl], _, _ = templ_producer_kde(df, ptMins[iPt], ptMaxs[iPt], name, templatesFile, 
+                                                                          fitConfig['score_bkg']['min'][iPt], fitConfig['score_bkg']['max'][iPt],
+                                                                          fitConfig['score_FD']['min'][iPt], fitConfig['score_FD']['max'][iPt],
+                                                                          )
+                    else:
+                        Templates[iPt][iTempl], _, _ = templ_producer_kde(df, ptMins[iPt], ptMaxs[iPt], name, templatesFile)
                     TemplatesFuncts[iPt][iTempl] = Templates[iPt][iTempl].GetFunction()
             else:
                 print(f'Provided setting for templates not implemented, templates for {ptMins[iPt]} <= pt < {ptMaxs[iPt]} bin will not be added!')
@@ -173,8 +179,8 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
     fTotFuncMass, fTotFuncVn, fSgnFuncMass, fBkgFuncMass, fMassBkgRflFunc, fMassSecPeakFunc, fBkgFuncVn, fVnSecPeakFunc, fVnCompFuncts = [], [], [], [], [], [], [], [], []
     hMCSgn, hMCRefl = [], []
     
-    fMassTemplFuncts = [[None]*len(fitConfig['TemplsQueries']) for _ in range(len(ptMins))] if fitConfig.get('IncludeTempls') and (particleName == 'Dplus' or particleName == 'Ds') else []
-    fVnCompFuncts = [[None]*len(fitConfig['TemplsQueries']) for _ in range(len(ptMins))] if fitConfig.get('DrawVnComps') else []
+    fMassTemplFuncts = [[None]*len(fitConfig['TemplsNames']) for _ in range(len(ptMins))] if fitConfig.get('IncludeTempls') and (particleName == 'Dplus' or particleName == 'Ds') else []
+    fVnCompFuncts = [[None]*len(fitConfig['TemplsNames']) for _ in range(len(ptMins))] if fitConfig.get('DrawVnComps') else []
 
     hist_reso = infile.Get('hist_reso')
     hist_reso.SetDirectory(0)

@@ -79,12 +79,14 @@ SetGlobalStyle(titleoffsety=1.1, maxdigits=3, topmargin=0.1, bottommargin=0.4, l
                labelsizey=0.04, setoptstat=0, setopttitle=0, setdecimals=True,titleoffsetx=0.74)
 
 def compute_syst_multitrial(rypathsyst, ry_default, outputdir):
+    print("INSIDE compute_syst_multitrial FUNC")
     trails_path = os.listdir(rypathsyst)
     trails = []
     # collect all trails
     for trail_path in trails_path:
         trails.append(Trails(os.path.join(rypathsyst, trail_path)))
-        
+    
+    print(f"ry_default: {ry_default}")    
     # default trail i.e. central value
     default_trail = Trails(ry_default, default=True)
     
@@ -136,13 +138,16 @@ def compute_systematics(outputdir, gvn_vs_mass_default, gvn_vs_mass, hchi2, hsig
                 print(f'No ry file found for trial {j}: {trails[j].trail_path}')
                 continue
             # Skip chi2 higher than 5 and significance lower than 3
-            if (chi2 > 3 and chi2 != 0) or (significance < 6 and significance > 600):
+            if (chi2 > 30 and chi2 != 0) or (significance < 6 and significance > 600):
                 print(f'Skipping trial {j}: {trails[j].ryfiles[iFile]} for pt bin {ipt} with chi2 = {chi2} and significance = {significance}')
                 continue
+            print(f"Filling chi2 vs trial: {chi2}")
             hchi2_vs_trial[-1].SetBinContent(j, chi2)
             hchi2_vs_trial[-1].SetBinError(j, hchi2[j].GetBinError(ipt))
+            print(f"Filling significance vs trial: {significance}")
             hsignificance_vs_trial[-1].SetBinContent(j, significance)
             hsignificance_vs_trial[-1].SetBinError(j, hsignificance[j].GetBinError(ipt))
+            print(f"Filling vn vs trial: {gvn_vs_mass[j].GetY()[i]}")
             hvn[-1].SetBinContent(j, gvn_vs_mass[j].GetY()[i])
             hvn[-1].SetBinError(j, gvn_vs_mass[j].GetEYlow()[i])
             hsyst[-1].Fill(gvn_vs_mass[j].GetY()[i] - gvn_vs_mass_default.GetY()[i])
@@ -272,7 +277,7 @@ def compute_systematics_prompt(outputdir, default_trail, trails):
                 significance = trails[j].hsignificances[iFile].GetBinContent(ipt)
                 chi2 = trails[j].hchi2s[iFile].GetBinContent(ipt)
                 # Skip chi2 higher than 5 and significance lower than 3
-                if (chi2 < 3 and chi2 != 0) or (significance < 6 and significance > 600):
+                if (chi2 < 30 and chi2 != 0) or (significance < 6 and significance > 600):
                     print(f'Skipping trial {j}: {trails[j].ryfiles[iFile]} for pt bin {ipt} with chi2 = {chi2} and significance = {significance}')
                     continue
             if trails[j].hv2vsptprompt.GetNbinsX() <= ipt:
@@ -284,6 +289,8 @@ def compute_systematics_prompt(outputdir, default_trail, trails):
             hvn[-1].SetBinContent(j, trails[j].hv2vsptprompt.GetBinContent(ipt))
             hvn[-1].SetBinError(j, trails[j].hv2vsptprompt.GetBinError(ipt))
             print(i)
+            print(f"default_trail: {default_trail}")
+            print(f"default_trail.hv2vsptprompt: {default_trail.hv2vsptprompt}")
             hsyst[-1].Fill(trails[j].hv2vsptprompt.GetBinContent(ipt) - default_trail.hv2vsptprompt.GetBinContent(ipt))
         #input(f'pt bin {ipt} done. Number of trials skipped = {counter}')
 
@@ -365,6 +372,7 @@ def compute_systematics_prompt(outputdir, default_trail, trails):
             suffix_pdf = ''
         canv.SaveAs(f'{outputdir}/SystPromptv2.pdf{suffix_pdf}')
     canvsyst.SaveAs(f'{outputdir}/SystPromptv2_vs_pt.pdf)')
+    print("Input")
     input()
 
     outdir = os.path.join(outputdir, 'syst_multitrial')
@@ -378,6 +386,8 @@ def compute_systematics_prompt(outputdir, default_trail, trails):
         h.Write()
     hsyst_final.Write()
     outfile.Close()
+
+    print("ENDED compute_syst_multitrial func")
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Arguments')
@@ -387,6 +397,8 @@ if __name__ == "__main__":
     parser.add_argument("--prompt", "-p", action="store_true", help="compute systematics for prompt D mesons")
     args = parser.parse_args()
 
+    print("INSIDE compute_syst_multitrial SCRIPT")
+
     if args.prompt:
         SystMultitrial.prompt = True
         
@@ -394,3 +406,5 @@ if __name__ == "__main__":
     compute_syst_multitrial(args.rypathsyst,
                             args.ry_default,
                             args.outputdir)
+
+    print("ENDED compute_syst_multitrial SCRIPT")

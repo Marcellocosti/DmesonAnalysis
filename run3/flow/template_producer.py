@@ -10,46 +10,52 @@ import os
 import re
 from ROOT import TFile, TKDE, TCanvas, TH1D, TF1
 
-def templ_producer_kde(tree, pt_min, pt_max, name, outfile='', var='', query=''):
+def templ_producer_kde(tree, pt_min, pt_max, name, outfile='', bkg_min=0, bkg_max=1, fd_min=0, fd_max=1, var='fM'):
     
-    print(f"Producing KDE from {name} for var {var}, {pt_min} <= pt < {pt_max}")
-    print(f"-----> Query: {pt_min} <= fPt < {pt_max} and {query}")
-    
-    print(f"[2] type(tree): {type(tree)}")
-    # tree.query(f"{pt_min} <= fPt < {pt_max} and {query}")
-    print(f"[3] type(tree): {type(tree)}")
-    var_values = tree.query(f"{pt_min} <= fPt and fPt < {pt_max} and {query}")[var].tolist()
-    print(f"len(var_values): {len(var_values)}")
-    print(f"np.asarray(var_values, 'd'): {np.asarray(var_values, 'd')}")
-    kde = TKDE(len(var_values), np.asarray(var_values, 'd'), 0, 3)
-    kde_func = kde.GetFunction(500)
-    
-    binned_var_values = TH1D(f'hBinned', f'hBinned', 3000, 0, 3)
-    for var_value in var_values:
-        binned_var_values.Fill(var_value)
-    
-    max_content = 0
-    for bin_idx in range(1, binned_var_values.GetNbinsX() + 1):
-        bin_content = binned_var_values.GetBinContent(bin_idx)
-        if bin_content > max_content:
-            max_content = bin_content
-            max_bin = bin_idx
-    binned_var_values.Scale(kde_func.GetMaximum() / binned_var_values.GetBinContent(max_bin))
-    
-    if outfile != '':
-        cOverlap = TCanvas('cOverlap', 'cOverlap', 600, 600)
-        cOverlap.cd()
-        binned_var_values.Draw()
-        kde_func.Draw('same')
-        outfile.mkdir(f'KDE_pT_{pt_min}_{pt_max}_{name}')
-        outfile.cd(f'KDE_pT_{pt_min}_{pt_max}_{name}')
-        kde.Write('kde')
-        binned_var_values.Write()
-        kde_func.Write()
-        cOverlap.Write()
-    
-    return kde, kde_func, binned_var_values
+    # print(f"[2] type(tree): {type(tree)}")
+    # # tree.query(f"{pt_min} <= fPt < {pt_max} and {query}")
+    # print(f"[3] type(tree): {type(tree)}")
+    if fd_max != 0:
+        query = f"{pt_min} < fPt < {pt_max} and fMlScore0 < {bkg_max} and fMlScore1 >= {fd_min} and fMlScore1 < {fd_max}"
+    else:
+        query = f"{pt_min} <= fPt and fPt < {pt_max}"
 
+    print(f"Producing KDE from {name} for var {var}, query: {query}")
+    var_values = tree.query(query)[var].tolist()
+    if len(var_values) > 0:
+        print(f"len(var_values): {len(var_values)}")
+        print(f"np.asarray(var_values, 'd'): {np.asarray(var_values, 'd')}")
+        kde = TKDE(len(var_values), np.asarray(var_values, 'd'), 0, 3)
+        kde_func = kde.GetFunction(500)
+        
+        binned_var_values = TH1D(f'hBinned', f'hBinned', 3000, 0, 3)
+        for var_value in var_values:
+            binned_var_values.Fill(var_value)
+        
+        max_content = 0
+        for bin_idx in range(1, binned_var_values.GetNbinsX() + 1):
+            bin_content = binned_var_values.GetBinContent(bin_idx)
+            if bin_content > max_content:
+                max_content = bin_content
+                max_bin = bin_idx
+        binned_var_values.Scale(kde_func.GetMaximum() / binned_var_values.GetBinContent(max_bin))
+        
+        if outfile != '':
+            cOverlap = TCanvas('cOverlap', 'cOverlap', 600, 600)
+            cOverlap.cd()
+            binned_var_values.Draw()
+            kde_func.Draw('same')
+            outfile.mkdir(f'KDE_pT_{pt_min}_{pt_max}_{name}')
+            outfile.cd(f'KDE_pT_{pt_min}_{pt_max}_{name}')
+            kde.Write('kde')
+            binned_var_values.Write()
+            kde_func.Write()
+            cOverlap.Write()
+        
+        return kde, kde_func, binned_var_values
+    else:
+        return None, None, None
+    
 def templ_producer_histo(tree_file, var, pt_min, pt_max, queries, names, relweights=[], outfile='', tree_name='O2hfcanddplite'):
 
     print(f"Producing KDE from {tree_file} for var {var}, {pt_min} <= pt < {pt_max}, names {names}")
@@ -180,6 +186,10 @@ def extract_template_weights(config):
         BRDplusKKPiPDG = 9.68e-3
         BRDsKKPiPDG = 5.37e-2
         BRDsKKPiMC = 1.
+        BRD0KPiPDG = 3.89e-2
+        BRD0KPiMC = 3.89e-2
+        BRD0KKPiMC = 3.89e-3
+        
         print(config['TemplsNames'])
         for iTemplate, templ in enumerate(config['TemplsNames']):
             if templ == "DsKKPi":
@@ -189,7 +199,8 @@ def extract_template_weights(config):
                 templatesBRNorms.append(BRDplusKKPiPDG / (BRDplusKKPiMC / BRDplusTotMC))
             elif templ == "DStar":
                 # the decay table of D* is not modified in the MC, thus BR_PDG / BR_MC = 1
-                templatesBRNorms.append(1.)
+                # but the modification of the decay table of D0 needs to be taken into account
+                templatesBRNorms.append(1. * (BRD0KPiPDG / (BRD0KPiMC / (BRD0KPiPDG + BRD0KKPiMC))))
             else:
                 templatesBRNorms.append(1.)
         signalBRNorm = BRDplusKPiPiPDG / (BRDplusKPiPiMC / BRDplusTotMC)
@@ -201,7 +212,7 @@ def extract_template_weights(config):
     templatesYieldsDfs = [signalDf] + templatesDfs 
     templatesYieldsNames = ["Signal"] + config['TemplsNames']
     templatesBRNorms = [signalBRNorm] + templatesBRNorms
-    config_files = [f for f in os.listdir(f"{config['out_dir']}/config/") if os.path.isfile(os.path.join(f"{config['out_dir']}/config/", f))]
+    config_files = [f for f in os.listdir(f"{config['out_dir']}/cutvar_{config['suffix']}/config/") if os.path.isfile(os.path.join(f"{config['out_dir']}/cutvar_{config['suffix']}/config/", f))]
     print(f"config_files: {config_files}")
     
     ### Loop over the cutsets
@@ -209,7 +220,7 @@ def extract_template_weights(config):
         match = re.search(r"(\d+)\.yml$", os.path.basename(config_file))
         if match:
             cutset = match.group(1)
-        with open(f"{config['out_dir']}/config/{config_file}", 'r') as cfg:
+        with open(f"{config['out_dir']}/cutvar_{config['suffix']}/config/{config_file}", 'r') as cfg:
             config_cut = yaml.safe_load(cfg)
         pt_bins = array.array('d', config_cut['cutvars']['Pt']['min'] + [config_cut['cutvars']['Pt']['max'][-1]])
 
