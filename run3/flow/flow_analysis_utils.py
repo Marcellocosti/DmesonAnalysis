@@ -345,6 +345,8 @@ def get_centrality_bins(centrality):
         return '20_60', [20, 60]
     elif centrality == 'k4060':
         return '40_60', [40, 60]
+    elif centrality == 'k4080':
+        return '40_80', [40, 80]
     elif centrality == 'k6070':
         return '60_70', [60, 70]
     elif centrality == 'k6080':
@@ -534,17 +536,17 @@ def get_vnfitter_results(vnFitter, secPeak, useRefl, useTempl, DrawVnComps):
     vn_results['fBkgFuncVn'] = vnFitter.GetVnVsMassBkgFitFunc()
     vn_results['fSgnFuncMass'] = vnFitter.GetMassSignalFitFunc()
     
+    if secPeak:
+        vn_results['fVnCompsFuncts']['vnSecPeak'] = vnComps[2]
+    vn_results['fMassTemplFuncts'] = vnFitter.GetMassTemplFuncts()
     if DrawVnComps:
         vn_results['fVnCompsFuncts'] = {}
         vnComps = vnFitter.GetVnCompsFuncts()
         vn_results['fVnCompsFuncts']['vnSgn'] = vnComps[0]
         vn_results['fVnCompsFuncts']['vnBkg'] = vnComps[1]
-    if secPeak:
-        vn_results['fVnCompsFuncts']['vnSecPeak'] = vnComps[2]
-    vn_results['fMassTemplFuncts'] = vnFitter.GetMassTemplFuncts()
-    if useTempl:
-        for iTempl in range(len(vn_results['fMassTemplFuncts'])):
-            vn_results['fVnCompsFuncts'][f'vnTempl{iTempl}'] = vnComps[2+secPeak+iTempl]
+        if useTempl:
+            for iTempl in range(len(vn_results['fMassTemplFuncts'])):
+                vn_results['fVnCompsFuncts'][f'vnTempl{iTempl}'] = vnComps[2+secPeak+iTempl]
     
     bkg, bkgUnc = ctypes.c_double(), ctypes.c_double()
     vnFitter.Background(3, bkg, bkgUnc)

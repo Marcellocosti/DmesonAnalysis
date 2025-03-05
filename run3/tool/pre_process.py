@@ -143,7 +143,6 @@ def process_pt_bin_Singlecut(iPt, ptmin, ptmax, centMin, centMax, bkg_max_cut, s
     # add possibility to apply cuts for different variables
     processed_sparses = []
     print(f"thnsparse_list: {thnsparse_list}")
-    # quit()
     for iThn, (sparse_key, sparse) in enumerate(thnsparse_list.items()):
         cloned_sparse = sparse.Clone()
         cloned_sparse.GetAxis(sparse_axes['Flow']['Pt']).SetRangeUser(ptmin, ptmax)

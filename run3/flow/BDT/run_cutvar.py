@@ -190,12 +190,11 @@ def run_full_cut_variation(config_flow,
 	if vn:
 		check_dir(f"{output_dir}/ry")
 		SimFitPath = os.path.join(work_dir, "./../get_vn_vs_mass.py")
-		print("CIAOOOO")
 		if config['Dmeson'] == 'Dplus' and config.get('IncludeTempls'):
 			extract_template_weights(config_flow)
-		print("CIAOOO2")
 
 		print('EXTRACTED TEMPLATE WEIGHTS')
+		# quit()
 		def run_simfit(i):
 			"""Run simultaneous fit for a given cutset index."""
 			iCutSets = f"{i:02d}"

@@ -10,37 +10,38 @@ import os
 import re
 from ROOT import TFile, TKDE, TCanvas, TH1D, TF1
 
-def templ_producer_kde(tree, pt_min, pt_max, name, outfile='', bkg_min=0, bkg_max=1, fd_min=0, fd_max=1, var='fM'):
+def templ_producer_kde(tree, pt_min, pt_max, mass_min, mass_max, name, outfile='', bkg_min=0, bkg_max=1, fd_min=0, fd_max=1, var='fM'):
     
-    # print(f"[2] type(tree): {type(tree)}")
-    # # tree.query(f"{pt_min} <= fPt < {pt_max} and {query}")
-    # print(f"[3] type(tree): {type(tree)}")
     if fd_max != 0:
-        query = f"{pt_min} < fPt < {pt_max} and fMlScore0 < {bkg_max} and fMlScore1 >= {fd_min} and fMlScore1 < {fd_max}"
+        query = f"{pt_min} <= fPt < {pt_max} and fMlScore0 < {bkg_max} and fMlScore1 >= {fd_min} and fMlScore1 < {fd_max}"
+        # query = f"{mass_min} <= fM and fM < {mass_max} and {pt_min} <= fPt < {pt_max} and fMlScore0 < {bkg_max} and fMlScore1 >= {fd_min} and fMlScore1 < {fd_max}"
     else:
         query = f"{pt_min} <= fPt and fPt < {pt_max}"
+        # query = f"{mass_min} <= fM and fM < {mass_max} and {pt_min} <= fPt and fPt < {pt_max}"
 
     print(f"Producing KDE from {name} for var {var}, query: {query}")
     var_values = tree.query(query)[var].tolist()
-    if len(var_values) > 0:
-        print(f"len(var_values): {len(var_values)}")
-        print(f"np.asarray(var_values, 'd'): {np.asarray(var_values, 'd')}")
-        kde = TKDE(len(var_values), np.asarray(var_values, 'd'), 0, 3)
-        kde_func = kde.GetFunction(500)
+    # print(f"var_values: {var_values}")
+    # quit()
+    if len(var_values) > 10:
+        kde = TKDE(len(var_values), np.asarray(var_values, 'd'), 1, 3)
         
-        binned_var_values = TH1D(f'hBinned', f'hBinned', 3000, 0, 3)
+        binned_var_values = TH1D(f'hBinned', f'hBinned', 2000, 1, 3)
         for var_value in var_values:
             binned_var_values.Fill(var_value)
-        
-        max_content = 0
-        for bin_idx in range(1, binned_var_values.GetNbinsX() + 1):
-            bin_content = binned_var_values.GetBinContent(bin_idx)
-            if bin_content > max_content:
-                max_content = bin_content
-                max_bin = bin_idx
-        binned_var_values.Scale(kde_func.GetMaximum() / binned_var_values.GetBinContent(max_bin))
-        
+
         if outfile != '':
+            max_content = 0
+            kde_func = kde.GetFunction(500)
+            print(f"kde_func.Integral(1,3): {kde_func.Integral(1,3)}")
+            for bin_idx in range(1, binned_var_values.GetNbinsX() + 1):
+                bin_content = binned_var_values.GetBinContent(bin_idx)
+                if bin_content > max_content:
+                    max_content = bin_content
+                    max_bin = bin_idx
+            binned_var_values.Scale(1 / binned_var_values.Integral(), 'width')
+            # binned_var_values.Scale(kde_func.GetMaximum() / binned_var_values.GetBinContent(max_bin))
+
             cOverlap = TCanvas('cOverlap', 'cOverlap', 600, 600)
             cOverlap.cd()
             binned_var_values.Draw()
@@ -51,10 +52,14 @@ def templ_producer_kde(tree, pt_min, pt_max, name, outfile='', bkg_min=0, bkg_ma
             binned_var_values.Write()
             kde_func.Write()
             cOverlap.Write()
+        # quit()
         
-        return kde, kde_func, binned_var_values
+        return kde
+        # return kde, kde_func, binned_var_values
     else:
-        return None, None, None
+        print('CIAO ELSE')
+        # quit()
+        return None
     
 def templ_producer_histo(tree_file, var, pt_min, pt_max, queries, names, relweights=[], outfile='', tree_name='O2hfcanddplite'):
 
@@ -75,13 +80,13 @@ def templ_producer_histo(tree_file, var, pt_min, pt_max, queries, names, relweig
         templ_df = df.query(f"{pt_min} < fPt < {pt_max} and {query}")[var].to_numpy()
         histos_templ.append(ROOT.TH1D(
             f"hist_templ_{name}_pt{pt_min:.1f}_{pt_max:.1f}",
-            "#it{M}(K#pi#pi) (GeV/#it{c})", 600, 1.67, 2.27))
+            "#it{M}(K#pi#pi) (GeV/#it{c})", 1500, 1.00, 2.50))
         for var_value in templ_df:
             histos_templ[-1].Fill(var_value)
 
     histo_comb = ROOT.TH1D(
         f"hist_templ_combined_pt{pt_min:.1f}_{pt_max:.1f}",
-        "#it{M}(K#pi#pi) (GeV/#it{c})", 600, 1.67, 2.27)
+        "#it{M}(K#pi#pi) (GeV/#it{c})", 1500, 1.00, 2.50)
 
     if relweights != []:
         for irelweight, histo_templ in zip(relweights, histos_templ):
@@ -102,58 +107,6 @@ def templ_producer_histo(tree_file, var, pt_min, pt_max, queries, names, relweig
         histo_comb_smoothened.Write()
 
     return histo_comb
-
-def get_templates_weights(tree_file, pt_min, pt_max, sgn_weight, templ_weights, names, outfile = ''):
-    """
-    """
-
-    dfsData = []
-    print(f"tree_file: {tree_file}")
-    with uproot.open(f'{tree_file}') as f:
-        for key in f.keys():
-            if tree_name in key:
-                dfData = f[key].arrays(library='pd')
-                dfsData.append(dfData)      
-    df = pd.concat([df for df in dfsData], ignore_index=True)
-
-    df_bkg = df.query("abs(fFlagMcMatchRec) == 4")
-    df_signal = df.query("abs(fFlagMcMatchRec) == 1")
-
-    hist_frac_bkg_to_signal = ROOT.TH1D("hist_frac_bkg_to_signal",
-                                        ";#it{p}_{T} (GeV/#it{c});bkg corr / signal",
-                                        len(pt_bins)-1, np.array(pt_bins, dtype=np.float64))
-    
-    hist_templ_comb = ROOT.TH1D(f"hist_templ_comb_pt{pt_min:.1f}_{pt_max:.1f}",
-                                ";#it{M}(K#pi#pi) (GeV/#it{c})", 600, 1.67, 2.27)
-    
-    hist_templs, df_templs = [], []
-    for name, weight in zip(names, templ_weights):
-        hist_templs.append(ROOT.TH1D(f"hist_templ_{name}_pt{pt_min:.1f}_{pt_max:.1f}",
-                                     ";#it{M}(K#pi#pi) (GeV/#it{c})", 600, 1.67, 2.27))
-        df_templs.append(df_bkg.query(f"{pt_min} < fPt < {pt_max} and abs(fFlagMcDecayChanRec) > 2"))
-        for mass in df_templs[-1]["fM"].to_numpy():
-            hist_templs[-1].Fill(mass)
-        hist_templ_comb.Add(hist_templs[-1], weight)
-            
-    hist_signal = ROOT.TH1D(f"hist_signal_pt{pt_min:.1f}_{pt_max:.1f}",
-                            ";#it{M}(K#pi#pi) (GeV/#it{c})", 600, 1.67, 2.27)
-    df_pt_signal = df_signal.query(f"{pt_min} < fPt < {pt_max}")
-    for mass in df_pt_signal["fM"].to_numpy():
-        hist_signal[ipt].Fill(mass)
-    hist_signal.Scale(sgn_weight)
-
-    # Ds/D+ is underestimated in pythia CRMode2
-    hist_frac_bkg_to_signal.SetBinContent(ipt+1,
-                                          hist_templ_comb.Integral() / hist_signal.Integral())
-
-    if outfile != '':
-        hist_frac_bkg_to_signal.Write()
-        hist_signal.Write()
-        for hist in hist_templs:
-            hist.Write()
-            hist_smooth = hist.Clone(f"{hist.GetName()}_smooth")
-            hist_smooth.Smooth(100)
-            hist_smooth.Write()
 
 def extract_template_weights(config):
 
@@ -195,9 +148,13 @@ def extract_template_weights(config):
             if templ == "DsKKPi":
                 # Ds/D+ is underestimated in pythia CRMode2 --> multiply by 1.25
                 templatesBRNorms.append( (BRDsKKPiPDG / BRDsKKPiMC) * 1.25)
+                if iTemplate == 0:
+                    firstTemplBRNorm = (BRDsKKPiPDG / BRDsKKPiMC) * 1.25
             elif templ == "DplusKKPi":
                 templatesBRNorms.append(BRDplusKKPiPDG / (BRDplusKKPiMC / BRDplusTotMC))
-            elif templ == "DStar":
+                if iTemplate == 0:
+                    firstTemplBRNorm = BRDplusKKPiPDG / (BRDplusKKPiMC / BRDplusTotMC)
+            elif templ == "DstarKPiPi":
                 # the decay table of D* is not modified in the MC, thus BR_PDG / BR_MC = 1
                 # but the modification of the decay table of D0 needs to be taken into account
                 templatesBRNorms.append(1. * (BRD0KPiPDG / (BRD0KPiMC / (BRD0KPiPDG + BRD0KKPiMC))))
@@ -223,10 +180,22 @@ def extract_template_weights(config):
         with open(f"{config['out_dir']}/cutvar_{config['suffix']}/config/{config_file}", 'r') as cfg:
             config_cut = yaml.safe_load(cfg)
         pt_bins = array.array('d', config_cut['cutvars']['Pt']['min'] + [config_cut['cutvars']['Pt']['max'][-1]])
+        hist_frac_templ_to_signal = {}
+        hist_frac_templ_to_firsttempl = {}
+        for iTempl, templName in enumerate(templatesYieldsNames):
+            hist_frac_templ_to_signal[templName] = ROOT.TH1D(f"hist_{templName}_over_signal", f";p_T;{templName}/Signal", len(pt_bins)-1, pt_bins)
+            if iTempl >= 2:
+                hist_frac_templ_to_firsttempl[templName] = ROOT.TH1D(f"hist_{templName}_over_{templatesYieldsNames[1]}", f";p_T;{templName}/{templatesYieldsNames[1]}", len(pt_bins)-1, pt_bins)
+        hist_frac_templ_to_signal["TotalBkg"] = ROOT.TH1D(f"hist_totalbkg_over_signal", f";p_T;Bkg/Signal", len(pt_bins)-1, pt_bins)
+        print(f"hist_frac_templ_to_signal: {hist_frac_templ_to_signal}")
 
         ### Obtain the raw histo template and the one reweighted with the respective BR
-        for iTemplate, (templName, templDf, BRnorm) in enumerate(zip(templatesYieldsNames, templatesYieldsDfs, templatesBRNorms)):
-            for iPt, (ptmin, ptmax) in enumerate(zip(config_cut['cutvars']['Pt']['min'], config_cut['cutvars']['Pt']['max'])):
+        for iPt, (ptmin, ptmax) in enumerate(zip(config_cut['cutvars']['Pt']['min'], config_cut['cutvars']['Pt']['max'])):
+            nbins = int( (config_cut['fitrangemax'][iPt] - config_cut['fitrangemin'][iPt]) * 1000)
+            hist_templ_total = ROOT.TH1D(f"hist_templ_total", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
+            hist_signal = ROOT.TH1D(f"hist_signal", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
+            hist_first_templ = ROOT.TH1D(f"hist_first_templ", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
+            for iTemplate, (templName, templDf, BRnorm) in enumerate(zip(templatesYieldsNames, templatesYieldsDfs, templatesBRNorms)):
                 weights_file.mkdir(f"cutset_{cutset}/{templName}/pt_{ptmin}_{ptmax}/")
                 weights_file.cd(f"cutset_{cutset}/{templName}/pt_{ptmin}_{ptmax}/")
                 templDfPt = templDf.query(f"fPt >= {ptmin} and fPt < {ptmax}")
@@ -236,51 +205,44 @@ def extract_template_weights(config):
                     if config_cut['cutvars'].get('score_FD'):
                         templDfPt = templDfPt.query(f"fMlScore1 >= {config_cut['cutvars']['score_FD']['min'][iPt]} and fMlScore1 < {config_cut['cutvars']['score_FD']['max'][iPt]}")
 
-                hist_templ = ROOT.TH1D(f"h{templName}Raw", ";#it{M}(K#pi#pi) (GeV/#it{c})", 600, 1.67, 2.27)
+                hist_templ = ROOT.TH1D(f"h{templName}Raw", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
+                hist_templ_BR_rew = ROOT.TH1D(f"h{templName}BRRew", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
                 for mass in templDfPt["fM"].to_numpy():
                     hist_templ.Fill(mass)
                 hist_templ.Write(f"h{templName}Raw")
-                hist_templ.Scale(BRnorm)
-                hist_templ.Write(f"h{templName}RescaledBR")
+                if templName == 'Signal':
+                    hist_signal.Add(hist_templ, signalBRNorm)
+                    hist_templ_BR_rew.Add(hist_templ, signalBRNorm)
+                elif iTemplate == 1:
+                    hist_templ_BR_rew.Add(hist_templ, BRnorm)
+                    hist_first_templ.Add(hist_templ, BRnorm)                    
+                else:
+                    hist_templ_BR_rew.Add(hist_templ, BRnorm)
+                    hist_templ_total.Add(hist_templ, BRnorm)
 
-        ### Obtain the weights for the templates wrt the first template and signal
-        for iTemplate, (templName, templDf) in enumerate(zip(config['TemplsNames'], templatesDfs)):
+                hist_templ_BR_rew.Write(f"h{templName}RescaledBR")
+                hist_frac_templ_to_signal[templName].SetBinContent(iPt+1, hist_templ_BR_rew.Integral() / hist_signal.Integral())
+                if iTemplate >= 2:
+                    hist_frac_templ_to_firsttempl[templName].SetBinContent(iPt+1, hist_templ_BR_rew.Integral() / hist_first_templ.Integral())
 
-            hist_weights_sgn_templ = ROOT.TH1D(f"hist_weights_signal_{templName}", ";#it{M}(K#pi#pi) (GeV/#it{c})", len(pt_bins)-1, pt_bins)
-            hist_weights_firsttempl_templ = ROOT.TH1D(f"hist_weights_firsttempl_{templName}", ";#it{M}(K#pi#pi) (GeV/#it{c})", len(pt_bins)-1, pt_bins)
+            hist_frac_templ_to_signal["TotalBkg"].SetBinContent(iPt+1, hist_templ_total.Integral() / hist_signal.Integral())
+            weights_file.mkdir(f"cutset_{cutset}/CombinedSpectra/pt_{ptmin}_{ptmax}/")
+            weights_file.cd(f"cutset_{cutset}/CombinedSpectra/pt_{ptmin}_{ptmax}/")
+            hist_signal.Smooth(10)
+            hist_signal.Write()
+            hist_templ_total.Smooth(10)
+            hist_templ_total.Write()
 
-            for iPt, (ptmin, ptmax) in enumerate(zip(config_cut['cutvars']['Pt']['min'], config_cut['cutvars']['Pt']['max'])):
-                weights_file.cd(f"cutset_{cutset}/{templName}/pt_{ptmin}_{ptmax}/")                
-            
-                ### Get the BR-corrected histos for the signal, the first template and the template of interest
-                h_signal_yields_BR_rew = weights_file.Get(f"cutset_{cutset}/Signal/pt_{ptmin}_{ptmax}/hSignalRescaledBR")
-                h_first_templ_yields_BR_rew = weights_file.Get(f"cutset_{cutset}/{config['TemplsNames'][0]}/pt_{ptmin}_{ptmax}/h{config['TemplsNames'][0]}RescaledBR")        
-                h_templ_yields_BR_rew = weights_file.Get(f"cutset_{cutset}/{templName}/pt_{ptmin}_{ptmax}/h{templName}RescaledBR")        
-
-                ### Weights wrt the first template
-                h_templ_yields_BR_eff_rew_first_templ = h_templ_yields_BR_rew.Clone(f"h{templName}_BR_eff_rew_first_templ")        
-                if h_first_templ_yields_BR_rew.Integral() > 0:
-                    h_templ_yields_BR_eff_rew_first_templ.Scale(h_templ_yields_BR_rew.Integral() / h_first_templ_yields_BR_rew.Integral())        
-                    hist_weights_firsttempl_templ.SetBinContent(iPt+1, h_templ_yields_BR_rew.Integral() / h_first_templ_yields_BR_rew.Integral() )
-                h_templ_yields_BR_eff_rew_first_templ.Write(f"h{templName}_BR_eff_rew_first_templ")
-            
-                ### Weights wrt the signal
-                h_templ_yields_BR_eff_rew_sgn = h_templ_yields_BR_rew.Clone(f"h{templName}_BR_eff_rew_signal")        
-                if h_signal_yields_BR_rew.Integral() > 0:
-                    h_templ_yields_BR_eff_rew_sgn.Scale(h_templ_yields_BR_rew.Integral() / h_signal_yields_BR_rew.Integral())        
-                    hist_weights_sgn_templ.SetBinContent(iPt+1, h_templ_yields_BR_rew.Integral() / h_signal_yields_BR_rew.Integral() )
-                h_templ_yields_BR_eff_rew_sgn.Write(f"h{templName}_BR_eff_rew_signal")
-
-            weights_file.mkdir(f"cutset_{cutset}/{templName}/Weights/")
-            weights_file.cd(f"cutset_{cutset}/{templName}/Weights/")
-            hist_weights_sgn_templ.Write(f"hWeights{templName}_wrt_signal")
-            hist_weights_firsttempl_templ.Write(f"hWeights{templName}_wrt_firsttempl")
+        weights_file.cd(f"cutset_{cutset}")
+        for iTemplFrac in hist_frac_templ_to_signal.values():
+            iTemplFrac.Write()
+        for iTemplFrac in hist_frac_templ_to_firsttempl.values():
+            iTemplFrac.Write()
 
     weights_file.Close()
 
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Arguments")
+    parser = argparse.ArgumentParser(descriPtion="Arguments")
     parser.add_argument("--config", "-cfg", metavar="text",
                         default="config.yaml", help="configuration file")
     parser.add_argument("--var", "-v", metavar="text",

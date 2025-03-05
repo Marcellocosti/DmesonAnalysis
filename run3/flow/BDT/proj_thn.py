@@ -58,7 +58,6 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
         print(f"axes['Flow']['Mass']: {axes['Flow']['Mass']}")
         print(f"axes['Flow']['sp']: {axes['Flow']['sp']}")
         hist_vn_sp = get_vn_versus_mass(list(sparse_flow.values()), inv_mass_bins, axes['Flow']['Mass'], axes['Flow']['sp'])
-        quit()
         hist_vn_sp.SetDirectory(0)
         if reso > 0:
             hist_vn_sp.Scale(1./reso)
@@ -235,7 +234,7 @@ if __name__ == "__main__":
         cutSetCfg = yaml.load(ymlCutSetFile, yaml.FullLoader)
     cutVars = cutSetCfg['cutvars']
     cent, (cent_min, cent_max) = get_centrality_bins(args.centrality)
-
+    print(f"cent_min: {cent_min}")
     print(f"args.suffix: {args.suffix}")
     os.makedirs(f'{args.outputdir}/proj', exist_ok=True)
     outfilename = f'{args.outputdir}/proj/proj_{args.suffix}'
@@ -265,7 +264,6 @@ if __name__ == "__main__":
 
     print(f"create_new_file: {create_new_file}")
     print(f"outfilename + '.root': {outfilename+ '.root'}")
-    # quit()
     outfile_dir = 'hf-candidate-creator-2prong' if config['Dmeson'] == 'Dzero' else 'hf-candidate-creator-3prong'
     infilemc = TFile.Open(config['eff_filename'], 'r')
     histo_cent = infilemc.Get(f'{outfile_dir}/hSelCollisionsCent')
@@ -391,7 +389,6 @@ if __name__ == "__main__":
             #             mc_histos.append(histo)
             #             mc_histos[-1].SetDirectory(0)
             #     proj.Close()
-            #     # quit()
             #     outfile.cd(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}')
             #     for histo, name in zip(mc_histos, mc_histos_names):
             #         histo.Write(name)

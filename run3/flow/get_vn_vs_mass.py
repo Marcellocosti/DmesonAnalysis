@@ -134,28 +134,38 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
     Templates = []
     TemplatesFuncts = []
     if fitConfig.get('IncludeTempls'):
+        weightsFile = TFile.Open(fitConfig['WeightsFile'], 'r')
         templatesFile = TFile(f'{outputdir}/Templates_{cut_var_suffix}.root', 'recreate')
         Templates = [[None]*len(fitConfig['TemplsNames']) for _ in range(len(ptMins))]
         TemplatesFuncts = [[None]*len(fitConfig['TemplsNames']) for _ in range(len(ptMins))]
         templatesDfs = [pd.read_parquet(templPath) for templPath in fitConfig['TemplsPaths']]
-
         for iPt, (bkgStr, sgnStr, bkgVnStr) in enumerate(zip(BkgFuncStr, SgnFuncStr, BkgFuncVnStr)):
             if fitConfig['TemplInputType'][iPt] == 'kde':
                 for iTempl, (df, name) in enumerate(zip(templatesDfs, fitConfig['TemplsNames'])):
-                    if fitConfig.get('score_bkg') and fitConfig.get('score_FD'):
-                        Templates[iPt][iTempl], _, _ = templ_producer_kde(df, ptMins[iPt], ptMaxs[iPt], name, templatesFile, 
-                                                                          fitConfig['score_bkg']['min'][iPt], fitConfig['score_bkg']['max'][iPt],
-                                                                          fitConfig['score_FD']['min'][iPt], fitConfig['score_FD']['max'][iPt],
-                                                                          )
+                    if fitConfig.get('MlDiffWeights'):
+                        # Templates[iPt][iTempl], _, _ = templ_producer_kde(df, ptMins[iPt], ptMaxs[iPt], fitConfig['MassMin'][iPt], fitConfig['MassMax'][iPt], name, templatesFile, 
+                        Templates[iPt][iTempl] = templ_producer_kde(df, ptMins[iPt], ptMaxs[iPt], fitConfig['MassMin'][iPt], fitConfig['MassMax'][iPt], name, templatesFile, 
+                                                                    # fitConfig['score_bkg']['min'][iPt], fitConfig['score_bkg']['max'][iPt],
+                                                                    # fitConfig['score_FD']['min'][iPt], fitConfig['score_FD']['max'][iPt],
+                                                                    # )
+                                                                    0, 1, 0, 1)
+                        # quit()
                     else:
-                        Templates[iPt][iTempl], _, _ = templ_producer_kde(df, ptMins[iPt], ptMaxs[iPt], name, templatesFile)
-                    TemplatesFuncts[iPt][iTempl] = Templates[iPt][iTempl].GetFunction()
+                        Templates[iPt][iTempl] = templ_producer_kde(df, ptMins[iPt], ptMaxs[iPt], fitConfig['MassMin'][iPt], fitConfig['MassMax'][iPt], name, templatesFile)
+                    # quit()
+                    TemplatesFuncts[iPt][iTempl] = Templates[iPt][iTempl].GetFunction() if Templates[iPt][iTempl] is not None else None
+                    print(TemplatesFuncts[iPt][iTempl])
+                    # quit()
+            elif fitConfig['TemplInputType'][iPt] == 'histo':
+                ### only one histogram, properly reweighted
+                TemplatesFuncts[iPt] = weightsFile.Get(f"cutset_{cut_var_suffix}/CombinedSpectra/pt_{ptMins[iPt]}_{ptMaxs[iPt]}/hist_templ_total")
             else:
                 print(f'Provided setting for templates not implemented, templates for {ptMins[iPt]} <= pt < {ptMaxs[iPt]} bin will not be added!')
                 TemplatesFuncts[iPt][iTempl] = None
                 continue
         templatesFile.Close()
-
+    print(f"TemplatesFuncts: {TemplatesFuncts}")
+    # quit()
     # set particle configuration
     if particleName == 'Dzero':
         _, massAxisTit, decay, massForFit = get_particle_info(particleName)
@@ -372,6 +382,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
     #_____________________________________________________
     # Vn estimation with Scalar Product / Event Plane
     if vn_method == 'sp' or vn_method == 'ep':
+        print("Extracting Vn")
         massFitter, vnFitter = [], []
         for iPt, (hM, hV, ptMin, ptMax, reb, sgnEnum, bkgEnum, bkgVnEnum, secPeak, massMin, massMax) in enumerate(
                 zip(hMass, hVn, ptMins, ptMaxs, rebins, SgnFunc, BkgFunc, BkgFuncVn, inclSecPeak, massMins, massMaxs)):
@@ -460,30 +471,66 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 vnFitter[iPt].SetFixReflOverS(SoverR)
                 vnFitter[iPt].SetReflVnOption(0) # kSameVnSignal
             useTemplates = False
-            if fitConfig['IncludeTempls'] and fitConfig['TemplInputType'][iPt] == 'kde':
+            if fitConfig.get('IncludeTempls') and (fitConfig['TemplInputType'][iPt] == 'kde' or fitConfig['TemplInputType'][iPt] == 'histo'):
                 useTemplates = True 
             if useTemplates:        
-                weightsFile = TFile.Open(fitConfig['WeightsFile'], 'r')
+                print("useTemplates")
+                # weightsFile = TFile.Open(fitConfig['WeightsFile'], 'r')
                 TemplsRelWeights = []
-                for iTemplName in fitConfig['TemplsNames']:
-                    if fitConfig['AnchorTemplsMode'] == 2:
-                        histo_weights = weightsFile.Get(f"cutset_{cut_var_suffix}/{iTemplName}/Weights/hWeights{iTemplName}_wrt_signal")
+                for iTemplName, templName in enumerate(fitConfig['TemplsNames']):
+                    if fitConfig['AnchorTemplsMode'] == 2 and fitConfig['TemplInputType'][iPt] == 'histo':
+                        histo_weights = weightsFile.Get(f"cutset_{cut_var_suffix}/hist_totalbkg_over_signal")
+                        TemplsRelWeights.append(histo_weights.GetBinContent(iPt+1))
+                    elif fitConfig['AnchorTemplsMode'] == 2 and fitConfig['TemplInputType'][iPt] == 'kde':
+                        histo_weights = weightsFile.Get(f"cutset_{cut_var_suffix}/hist_{templName}_over_signal")
+                        TemplsRelWeights.append(histo_weights.GetBinContent(iPt+1))
                     elif fitConfig['AnchorTemplsMode'] == 1:
-                        histo_weights = weightsFile.Get(f"cutset_{cut_var_suffix}/{iTemplName}/Weights/hWeights{iTemplName}_wrt_firsttempl")
-                    TemplsRelWeights.append(histo_weights.GetBinContent(iPt+1))
-                
-                vnFitter[iPt].SetKDETemplates(TemplatesFuncts[iPt], fitConfig['TemplsNames'],
+                        if iTemplName != 0:
+                            histo_weights = weightsFile.Get(f"cutset_{cut_var_suffix}/hist_{templName}_over_{fitConfig['TemplsNames'][0]}")
+                            TemplsRelWeights.append(histo_weights.GetBinContent(iPt+1))
+                        else:
+                            TemplsRelWeights.append(1.)
+
+                print("vnFitter[iPt].SetKDETemplates")
+                fileDebug = TFile.Open(f'{outputdir}/debug_{iPt}.root', 'recreate')
+                for func in TemplatesFuncts[iPt]:
+                    func.Write()
+                fileDebug.Close()
+                print("Finished writing")
+                print(f"TemplatesFuncts[iPt]: {TemplatesFuncts[iPt]}")
+                print(f"fitConfig['TemplsNames']: {fitConfig['TemplsNames']}")
+                print(f"fitConfig['InitWeights'][iPt]: {fitConfig['InitWeights'][iPt]}")
+                print(f"fitConfig['MinWeights'][iPt]: {fitConfig['MinWeights'][iPt]}")
+                print(f"fitConfig['MaxWeights'][iPt]: {fitConfig['MaxWeights'][iPt]}")
+                print(f"fitConfig['VnInitWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else []: {fitConfig['VnInitWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else []}")
+                print(f"fitConfig['VnMinWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else []: {fitConfig['VnMinWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else []}")
+                print(f"fitConfig['VnMaxWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else []: {fitConfig['VnMaxWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else []}")
+                print(f"fitConfig['FixVnTemplToSgn'][iPt]: {fitConfig['FixVnTemplToSgn'][iPt]}")
+                print(f"fitConfig['AnchorTemplsMode']: {fitConfig['AnchorTemplsMode']}")
+                print(f"TemplsRelWeights: {TemplsRelWeights}")
+                # vnFitter[iPt].SetKDETemplates(TemplatesFuncts[iPt], fitConfig['TemplsNames'],
+                #                               fitConfig['InitWeights'][iPt], fitConfig['MinWeights'][iPt], fitConfig['MaxWeights'][iPt], 
+                #                               fitConfig['VnInitWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else [], 
+                #                               fitConfig['VnMinWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else [], 
+                #                               fitConfig['VnMaxWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else [], 
+                #                               fitConfig['FixVnTemplToSgn'][iPt], fitConfig['AnchorTemplsMode'], TemplsRelWeights)
+                # vnFitter[iPt].SetKDETemplates(fitConfig['TemplsNames'],
+                vnFitter[iPt].SetKDETemplates(fitConfig['AnchorTemplsMode'], TemplsRelWeights, fitConfig['TemplsNames'], TemplatesFuncts[iPt],
                                               fitConfig['InitWeights'][iPt], fitConfig['MinWeights'][iPt], fitConfig['MaxWeights'][iPt], 
                                               fitConfig['VnInitWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else [], 
                                               fitConfig['VnMinWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else [], 
                                               fitConfig['VnMaxWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else [], 
-                                              fitConfig['FixVnTemplToSgn'][iPt], fitConfig['AnchorTemplsMode'], TemplsRelWeights)
+                                              fitConfig['FixVnTemplToSgn'][iPt])
             if fitConfig.get('InitBkg'):
                 if fitConfig['InitBkg'][iPt] != []:
                     vnFitter[iPt].SetBkgPars(list(itertools.chain(*fitConfig['InitBkg'][iPt])))
 
+            print(f'Fitting {ptMin} - {ptMax} GeV/c')
+            # quit()
+            # quit()
             # collect fit results
             vnFitter[iPt].SimultaneousFit(False)
+            quit()
             # REVIEW: delete this vnComps = vnFitter[iPt].GetVnCompsFuncts()
             vnResults = get_vnfitter_results(vnFitter[iPt], secPeak, useRefl, useTemplates, fitConfig.get('DrawVnComps'))
             fTotFuncMass.append(vnResults['fTotFuncMass'])

@@ -14,7 +14,8 @@ sys.path.append(os.path.abspath(os.path.join(script_dir, '..')))  # Append paren
 from flow_analysis_utils import get_cut_sets_config
 
 def make_combination(ptmins, ptmaxs, nCutSets, sig_cut_lower_file, 
-                     sig_cut_upper_file, bkg_cut_lower_file, bkg_cut_upper_file):
+                     sig_cut_upper_file, bkg_cut_lower_file, bkg_cut_upper_file, 
+                     fit_range_min, fit_range_max):
     '''
     Create a dictionary with the combination of cuts for each cutset
 
@@ -58,7 +59,9 @@ def make_combination(ptmins, ptmaxs, nCutSets, sig_cut_lower_file,
                     'max': [float(j) for j in sig_cut_upper_file[iFile]],
                     'name': 'score_FD'
                 }
-            }
+            },
+            'fitrangemin': fit_range_min, 
+            'fitrangemax': fit_range_max, 
         }
     return combinations
 
@@ -98,7 +101,8 @@ def make_yaml(flow_config, outputdir, suffix):
                 bkg_cut_upper_file[iCut].append(bkg_cut_upper[iPt][CutSets[iPt]-1])
 
     combinations = make_combination(ptmins, ptmaxs, maxCutSets, sig_cut_lower_file, 
-                                    sig_cut_upper_file, bkg_cut_lower_file, bkg_cut_upper_file)
+                                    sig_cut_upper_file, bkg_cut_lower_file, bkg_cut_upper_file,
+                                    input['MassMin'], input['MassMax'])
 
     for iFile in range(maxCutSets):
         print(f'''For cutset {iFile}:

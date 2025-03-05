@@ -155,19 +155,20 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
         print(f"Loading data sparses")
         if preprocessed:
             print("Loading preprocessed data")
-            if systematics:
-                print("Systematics")
-                config_pre_path = f"{preprocess_dir}/pre_sys/AnRes/config_pre.yml"
-            else:
-                config_pre_path = f"{preprocess_dir}/config_pre.yml"
-            # TODO: split the path of config_pre and the path of the AnRes files pre-processed
-            # TODO: the path of config_pre is in config_flow, hte path of the AnRes files pre-processed is in config_pre
-            with open(config_pre_path, 'r') as CfgPre:
-                config_pre = yaml.safe_load(CfgPre)
+            # if systematics:
+            #     print("Systematics")
+            #     config_pre_path = f"{preprocess_dir}/pre_sys/AnRes/config_pre.yml"
+            # else:
+            #     config_pre_path = f"{preprocess_dir}/config_pre.yml"
+            # # TODO: split the path of config_pre and the path of the AnRes files pre-processed
+            # # TODO: the path of config_pre is in config_flow, hte path of the AnRes files pre-processed is in config_pre
+            # with open(config_pre_path, 'r') as CfgPre:
+            #     config_pre = yaml.safe_load(CfgPre)
             # if config_pre['ptmins'] != config['ptmins'] or config_pre['ptmaxs'] != config['ptmaxs']:
             #     raise ValueError("Error: ptmins and ptmaxs in config_pre.yaml do not match the ones in the config.yaml")
             print("CIAOOOOO")
-            axes_dict['Flow'] = {ax: iax for iax, ax in enumerate(config_pre['axestokeep'])}
+            # axes_dict['Flow'] = {ax: iax for iax, ax in enumerate(config_pre['axestokeep'])}
+            axes_dict['Flow'] = {ax: iax for iax, ax in enumerate(config['axestokeep'])}
             for ptmin, ptmax in zip(config['ptmins'], config['ptmaxs']):
                 print(f"preprocess_dir: {preprocess_dir}")
                 print(f"Systematics: {systematics}")
@@ -243,28 +244,52 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
             axes_dict['RecoReflFD'] = axes_reco
             #TODO: safety checks for Dmeson reflecton and secondary peak
         elif config['Dmeson'] == 'Dplus':
-            sparsesReco['RecoPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassPrompt')
-            axes_dict['RecoPrompt'] = {
-                'Mass': 0,
-                'Pt': 1,
-                'score_bkg': 2,
-                'score_prompt': 3,
-                'score_FD': 4,
-                'cent': 5,
-                'occ': 6,
-            }
-            sparsesReco['RecoFD'] = infiletask.Get('hf-task-dplus/hSparseMassFD')
-            axes_dict['RecoFD'] = {
-                'Mass': 0,
-                'Pt': 1,
-                'pt_bmoth': 2,
-                'flag_bhad': 3,
-                'score_bkg': 4,
-                'score_prompt': 5,
-                'score_FD': 6,
-                'cent': 7,
-                'occ': 8
-            }
+            if config.get('MCAfterPRDplus'):
+                sparsesReco['RecoPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassPrompt')
+                axes_dict['RecoPrompt'] = {
+                    'Mass': 0,
+                    'Pt': 1,
+                    'score_bkg': 2,
+                    'score_prompt': 3,
+                    'score_FD': 4,
+                    'cent': 5,
+                    'occ': 6,
+                }
+                sparsesReco['RecoFD'] = infiletask.Get('hf-task-dplus/hSparseMassFD')
+                axes_dict['RecoFD'] = {
+                    'Mass': 0,
+                    'Pt': 1,
+                    'score_bkg': 2,
+                    'score_prompt': 3,
+                    'score_FD': 4,
+                    'cent': 5,
+                    'occ': 6,
+                    'pt_bmoth': 7,
+                    'flag_bhad': 8,
+                }
+            else:
+                sparsesReco['RecoPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassPrompt')
+                axes_dict['RecoPrompt'] = {
+                    'Mass': 0,
+                    'Pt': 1,
+                    'score_bkg': 2,
+                    'score_prompt': 3,
+                    'score_FD': 4,
+                    'cent': 5,
+                    'occ': 6,
+                }
+                sparsesReco['RecoFD'] = infiletask.Get('hf-task-dplus/hSparseMassFD')
+                axes_dict['RecoFD'] = {
+                    'Mass': 0,
+                    'Pt': 1,
+                    'pt_bmoth': 2,
+                    'flag_bhad': 3,
+                    'score_bkg': 4,
+                    'score_prompt': 5,
+                    'score_FD': 6,
+                    'cent': 7,
+                    'occ': 8
+                }
         elif config['Dmeson'] == 'Ds':
             sparsesReco['RecoPrompt'] = infiletask.Get('hf-task-ds/MC/Ds/Prompt/hSparseMass')
             axes_dict['RecoPrompt'] = {
@@ -311,22 +336,40 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
             axes_dict['GenFD'] = axes_gen
             #TODO: safety checks for Dmeson reflecton and secondary peak
         elif config['Dmeson'] == 'Dplus':
-            sparsesGen['GenPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassGenPrompt')
-            axes_dict['GenPrompt'] = {
-                'Pt': 0,
-                'y': 1,
-                'cent': 2,
-                'occ': 3
-            }
-            sparsesGen['GenFD'] = infiletask.Get('hf-task-dplus/hSparseMassGenFD')
-            axes_dict['GenFD'] = {
-                'Pt': 0,
-                'y': 1,
-                'pt_bmoth': 2,
-                'flag_bhad': 3,
-                'cent': 4,
-                'occ': 5
-            }
+            if config.get('MCAfterPRDplus'):
+                sparsesGen['GenPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassGenPrompt')
+                axes_dict['GenPrompt'] = {
+                    'Pt': 0,
+                    'y': 1,
+                    'cent': 2,
+                    'occ': 3
+                }
+                sparsesGen['GenFD'] = infiletask.Get('hf-task-dplus/hSparseMassGenFD')
+                axes_dict['GenFD'] = {
+                    'Pt': 0,
+                    'y': 1,
+                    'cent': 2,
+                    'occ': 3,
+                    'pt_bmoth': 4,
+                    'flag_bhad': 5,
+                }
+            else:
+                sparsesGen['GenPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassGenPrompt')
+                axes_dict['GenPrompt'] = {
+                    'Pt': 0,
+                    'y': 1,
+                    'cent': 2,
+                    'occ': 3
+                }
+                sparsesGen['GenFD'] = infiletask.Get('hf-task-dplus/hSparseMassGenFD')
+                axes_dict['GenFD'] = {
+                    'Pt': 0,
+                    'y': 1,
+                    'pt_bmoth': 2,
+                    'flag_bhad': 3,
+                    'cent': 4,
+                    'occ': 5
+                }
         elif config['Dmeson'] == 'Ds':
             sparsesGen['GenPrompt'] = infiletask.Get('hf-task-ds/MC/Ds/Prompt/hSparseGen')
             axes_dict['GenPrompt'] = {

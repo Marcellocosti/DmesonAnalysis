@@ -46,6 +46,9 @@ class InvMassFitter : public TNamed {
     fPolDegreeBkg=deg;
     SetNumberOfParams();
   }
+  void SetBkgPars(std::vector<Double_t> initpars) {
+    fMassBkgInitPars = initpars;
+  }
   void SetInitialGaussianMean(Double_t mean) {fMass=mean;} 
   void SetInitialGaussianSigma(Double_t sigma) {fSigmaSgn=sigma;}
   void SetInitialSecondGaussianSigma(Double_t sigma) {fSigmaSgn2Gaus=sigma;}
@@ -265,9 +268,11 @@ class InvMassFitter : public TNamed {
   TemplAnchorMode       fAnchorTemplsMode;     /// init values of the templates' weights
   Int_t                 fNParsTempls;          /// fit parameters in templates fit function
   std::vector<Double_t> fRelWeights;           /// relative weights of templates
-  std::vector<Double_t> fMassWeightsUpperLims;     /// upper limit of the templates' weights
-  std::vector<Double_t> fMassWeightsLowerLims;     /// lower limit of the templates' weights
-  std::vector<Double_t> fMassInitWeights;          /// init value of the templates' weights
+  std::vector<Double_t> fMassWeightsUpperLims; /// upper limit of the templates' weights
+  std::vector<Double_t> fMassWeightsLowerLims; /// lower limit of the templates' weights
+  std::vector<Double_t> fMassInitWeights;      /// init value of the templates' weights
+  std::vector<Double_t> fMassBkgInitPars;      /// init values of the templates' weights
+
   
   /// \cond CLASSIMP     
   ClassDef(InvMassFitter,9); /// class for invariant mass fit
