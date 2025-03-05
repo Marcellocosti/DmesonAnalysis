@@ -100,10 +100,6 @@ public:
     fKDETemplates = {};  // Clear the vector
     fKDETemplates.push_back(std::move(templsPdf));  // Use move to transfer ownership
 
-    fKDETemplates.back().SetNpx(3000);
-    fKDETemplates.back().Write();
-    fileCheck->Close();
-
     fMassInitWeights=initweights;
     fMassWeightsLowerLims=minweights;
     fMassWeightsUpperLims=maxweights;
