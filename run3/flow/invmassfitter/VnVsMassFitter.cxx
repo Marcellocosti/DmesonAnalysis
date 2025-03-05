@@ -236,20 +236,17 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
   DefineNumberOfParameters();
 
   const Int_t nparsmass = fNParsMassSgn+fNParsMassBkg+fNParsSec+fNParsRfl+fNParsTempls;
-  cout << "nparsmass: " << nparsmass << endl;
   Int_t NvnParsSgn = 1;
   if(fSecondPeak && fDoSecondPeakVn) {NvnParsSgn+=1;}
   if(fReflections && fVnRflOpt==kFreePar) {NvnParsSgn+=1;}
   Int_t NvnParsTempls = 0;
   if(!fTemplSameVnOfSignal) {NvnParsSgn+=fNParsTempls;}
   const Int_t nparsvn = nparsmass+fNParsVnBkg+NvnParsSgn+NvnParsTempls;
-  cout << "nparsvn: " << nparsvn << endl;
 
   Bool_t massprefit=MassPrefit();
   if(!massprefit) {printf("Impossible to perform the mass prefit"); return kFALSE;}
   Bool_t vnprefit=VnSBPrefit();
   if(!vnprefit) {printf("Impossible to perform the bkg vn prefit"); return kFALSE;}
-  // return true;
   std::vector<Double_t> initpars;
   for(Int_t iBkgPar=0; iBkgPar<fNParsMassBkg; iBkgPar++) {
     initpars.push_back(fMassFuncFromPrefit->GetParameter(iBkgPar));
@@ -277,7 +274,6 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
   fVnTotFunc = new TF1("fVnTotFunc",this,&VnVsMassFitter::vnFunc,fMassMin,fMassMax,nparsvn,"VnVsMassFitter","vnFunc");
   SetParNames();
 
-  cout << "Setting up combined fit" << endl;
   ROOT::Math::WrappedMultiTF1 wfTotMass(*fMassTotFunc,1);
   ROOT::Math::WrappedMultiTF1 wfTotVn(*fVnTotFunc,1);
 
@@ -299,7 +295,6 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
   GlobalChi2 globalChi2(chi2Mass, chi2Vn);
 
   //define fitter
-  ROOT::Math::MinimizerOptions::SetDefaultMaxFunctionCalls(1);
   ROOT::Fit::Fitter fitter;
   // create before the parameter settings in order to fix or set range on them
   fitter.Config().SetParamsSettings(nparsvn,initpars.data()); //set initial parameters from prefits
@@ -313,7 +308,6 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
       }
     }
   }
-  fitter.Config().ParSettings(fNParsMassBkg).SetValue(1250);
   if(fMeanFixed==2 || fMeanFixedFromMassFit) {fitter.Config().ParSettings(fNParsMassBkg+1).Fix();}
   fitter.Config().ParSettings(fNParsMassBkg+2).SetLimits(0,1);
   if(fSigmaFixed==2 || fSigmaFixedFromMassFit) {fitter.Config().ParSettings(fNParsMassBkg+2).Fix();}
@@ -348,18 +342,25 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
     }
   }
 
-// for(int iPar=0; iPar<nparsvn; iPar++) {
-//   fitter.Config().ParSettings(iPar).Fix();
-// }
+  // for(int iPar=0; iPar<nparsvn; iPar++) {
+  //   fitter.Config().ParSettings(iPar).Fix();
+  // }
 
   fitter.Config().MinimizerOptions().SetPrintLevel(0);
   fitter.Config().SetMinimizer("Minuit2","Migrad");
+  cout << "fNParsMassSgn: " << fNParsMassSgn << endl;
+  cout << "fNParsMassBkg: " << fNParsMassBkg << endl;
+  cout << "fNParsSec: " << fNParsSec << endl;
+  cout << "fNParsSec: " << fNParsSec << endl;
+  cout << "fNParsRfl: " << fNParsRfl << endl;
+  cout << "fNParsTempls: " << fNParsTempls << endl;
+  cout << "fNParsVnBkg: " << fNParsVnBkg << endl;
+  cout << "fNParsVnSgn: " << fNParsVnSgn << endl;
+  cout << "fNParsVnSecPeak: " << fNParsVnSecPeak << endl;
   for(Int_t iPar=0; iPar<nparsvn; iPar++) {fitter.Config().ParSettings(iPar).SetName(fVnTotFunc->GetParName(iPar));}
   // fit FCN function directly
   // (specify optionally data size and flag to indicate that is a chi2 fit
-  cout << "Performing combined fit" << endl;
   Bool_t isFitOk = fitter.FitFCN(nparsvn,globalChi2,0,dataMass.Size()+dataVn.Size(),kFALSE);
-  cout << "isFitOk: " << isFitOk << endl;
   if(!isFitOk) return kFALSE;
 
   ROOT::Fit::FitResult result = fitter.Result();
@@ -611,7 +612,6 @@ void VnVsMassFitter::DrawHere(TVirtualPad* c){
 //________________________________________________________________
 Bool_t VnVsMassFitter::MassPrefit() {
 
-  // cout << "CIAO11" << endl;
   // //define proper maxs and mins from histos
   Double_t tmpmin = TMath::Max(fMassHisto->GetBinLowEdge(1),fVnVsMassHisto->GetBinLowEdge(1));
   fMassMin=TMath::Max(fMassMin,tmpmin);
@@ -622,7 +622,6 @@ Bool_t VnVsMassFitter::MassPrefit() {
   if (fMassBkgInitPars.size()>0) {
     fMassFitter->SetBkgPars(fMassBkgInitPars);
   }
-  // cout << "CIAO13" << endl;
   if(fSigmaFixed==1) fMassFitter->SetInitialGaussianSigma(fSigmaInit);
   else if(fSigmaFixed==2) fMassFitter->SetFixGaussianSigma(fSigmaInit);
   if(fMeanFixed==1) fMassFitter->SetInitialGaussianMean(fMeanInit);
@@ -633,7 +632,6 @@ Bool_t VnVsMassFitter::MassPrefit() {
     if(fFrac2GausFixed==1) fMassFitter->SetInitialFrac2Gaus(fFrac2GausInit);
     else if(fFrac2GausFixed==2) fMassFitter->SetFixFrac2Gaus(fFrac2GausInit);
   }
-  // cout << "CIAO14" << endl;
   fMassFitter->SetUseLikelihoodFit();
   if(fMassBkgFuncType==kPoln) {fMassFitter->SetPolDegreeForBackgroundFit(fPolDegreeBkg);}
   if(fSecondPeak) {fMassFitter->IncludeSecondGausPeak(fSecMass,fFixSecMass,fSecWidth,fFixSecWidth);}
@@ -652,10 +650,8 @@ Bool_t VnVsMassFitter::MassPrefit() {
     fMassPrefitNDF       = fMassFitter->GetMassFunc()->GetNDF();
     fMassPrefitProb      = fMassFitter->GetFitProbability();
   }
-  // cout << "CIAO17" << endl;
   if(fReflections) fRawYieldHelp=fMassFitter->GetRawYield();
 
-  // cout << "CIAO18" << endl;
   return status;
 }
 
@@ -1052,7 +1048,6 @@ Double_t VnVsMassFitter::MassSignal(Double_t *m, Double_t *pars) {
 
   switch(fMassSgnFuncType) {
     case 0:
-      // cout << "Gaussian value, " << m[0] << ": " << GetGausPDF(m[0],pars[1],pars[2]) << ", " << GetGausPDF(m[0],pars[1],pars[2]) / pars[0] << ", " << pars[0]*GetGausPDF(m[0],pars[1],pars[2]) << ", " << pars[0] << endl;
       return pars[0]*GetGausPDF(m[0],pars[1],pars[2]);
       break;
     case 1:
@@ -1235,7 +1230,6 @@ Double_t VnVsMassFitter::MassFunc(Double_t *m, Double_t *pars) {
   for(Int_t iPar=0; iPar<fNParsRfl; iPar++) {rflpars[iPar] = pars[iPar+fNParsMassBkg+fNParsMassSgn+fNParsSec];}
 
   Double_t total = MassSignal(m,sgnpars)+MassBkg(m,bkgpars);
-  // cout << "MassSignalPdf: " << ( MassSignal(m,sgnpars).Integral() )/sgnpars[0] << endl;
   if(fSecondPeak) {total += MassSecondPeak(m,secpeakpars);}
   if(fReflections) {total += MassRfl(m,rflpars);}
 

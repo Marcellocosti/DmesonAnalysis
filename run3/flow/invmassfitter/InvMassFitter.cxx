@@ -669,8 +669,8 @@ TF1* InvMassFitter::CreateTotalFitFunction(TString fname){
       ftot->SetParLimits(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,parmin,parmax);
       ftot->SetParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,fTemplFunc->GetParameter(ipar));
       ftot->SetParName(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,fTemplFunc->GetParName(ipar));
-      ftot->FixParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,0.);
-      // ftot->FixParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,fTemplFunc->GetParameter(ipar));
+      ftot->FixParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,fTemplFunc->GetParameter(ipar));
+      // ftot->FixParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,0.);
     }
   }
   return ftot;

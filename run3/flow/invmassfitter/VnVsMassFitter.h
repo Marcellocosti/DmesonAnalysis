@@ -15,12 +15,9 @@
 #include "Math/WrappedMultiTF1.h"
 #include "InvMassFitter.h"
 
-
 class VnVsMassFitter : public TObject {
 
 public:
-
-
   VnVsMassFitter();
   VnVsMassFitter(TH1F* hMass, TH1F* hvn, Double_t min, Double_t max, Int_t funcMassBkg, Int_t funcMassSgn, Int_t funcvnBkg);
   ~VnVsMassFitter();
@@ -68,89 +65,29 @@ public:
     fMaxRefl=maxRange;
     fReflections=kTRUE;
   }
-  // void SetKDETemplates(std::vector<TF1> templs, std::vector<std::string> templsnames,
-  //                      std::vector<Double_t> initweights, std::vector<Double_t> minweights, std::vector<Double_t> maxweights, 
-  //                      std::vector<Double_t> vninitweights, std::vector<Double_t> vnminweights, std::vector<Double_t> vnmaxweights, 
-  //                      Bool_t samevnofsignal, int anchormode = TemplAnchorMode::Free, std::vector<Double_t> relcombweights = {}) {
-    // void SetKDETemplates(std::vector<std::string> templsnames,
   void SetKDETemplates(int anchormode, std::vector<Double_t> relcombweights, std::vector<std::string> templsnames, std::vector<TF1> templs, 
       std::vector<Double_t> initweights, std::vector<Double_t> minweights, std::vector<Double_t> maxweights, 
       std::vector<Double_t> vninitweights, std::vector<Double_t> vnminweights, std::vector<Double_t> vnmaxweights, 
       Bool_t samevnofsignal) {
-    cout << "CIAOOOOO" << endl;
-    cout << "SetKDETemplates templs" << endl;
-    // fKDETemplates=templs;
+    fKDETemplates=templs;
     fMassInitWeights=initweights;
     fMassWeightsLowerLims=minweights;
     fMassWeightsUpperLims=maxweights;
     fVnInitWeights=vninitweights;
     fVnWeightsLowerLims=vnminweights;
     fVnWeightsUpperLims=vnmaxweights;
-    fKDETemplates = {};
-    for(int iFunc=0; iFunc<templsnames.size(); iFunc++) {
-      TF1 templsPdf(Form("TemplsPdf_%s", templsnames[iFunc].c_str()),
-      // [&, this, iFunc](double *x, double *par) {
-        [&, this, iFunc, templs](double *x, double *par) {
-        if(templs[iFunc].Eval(x[0])<0)
-          return 0.;
-        else
-          return templs[iFunc].Eval(x[0]) / const_cast<TF1&>(templs[iFunc]).Integral(this->fMassMin, this->fMassMax);
-      }, this->fMassMin, this->fMassMax, 0);
-      fKDETemplates.push_back(std::move(templsPdf));  // Use move to transfer ownership
-      fKDETemplates.back().SetName(Form("TemplFlag_%s", templsnames[iFunc].c_str()));
-      fKDETemplates.back().SetTitle(Form("TemplFlag_%s", templsnames[iFunc].c_str()));
-    }
-    cout << "Number of KDE templates: " << fKDETemplates.size() << endl;
     if(samevnofsignal) {printf("WARNING: Vn parameter of templates will be the same as the one of the signal! \n");}
     fTemplSameVnOfSignal=samevnofsignal;
     fTemplates=kTRUE;
     fRelWeights=relcombweights;
     fAnchorTemplsMode=static_cast<TemplAnchorMode>(anchormode);
-    // cout << "SetKDETemplates templs end" << endl;
-    // cout << "Writing to file" << endl;
-    // TFile *fileCheck = new TFile("debug_spline.root", "recreate");
-    // TF1 allTemplsPdfRelWeights("allTemplsPdfRelWeights",
-    // // [&, this, iFunc](double *x, double *par) {
-    //   [&, this](double *x, double *par) {
-    //   double total = 0.;
-    //   for(int iFunc=0; iFunc<this->fKDETemplates.size(); iFunc++) {
-    //     total += this->fKDETemplates[iFunc].Eval(x[0]) * this->fRelWeights[iFunc];
-    //   }
-    //   return total;
-    // }, this->fMassMin, this->fMassMax, 0);
-    // TF1 allTemplsPdf("allTemplsPdf",
-    // // [&, this, iFunc](double *x, double *par) {
-    //   [&, this](double *x, double *par) {
-    //   double total = 0.;
-    //   for(int iFunc=0; iFunc<this->fKDETemplates.size(); iFunc++) {
-    //     total += this->fKDETemplates[iFunc].Eval(x[0]);
-    //   }
-    //   return total;
-    // }, this->fMassMin, this->fMassMax, 0);
-    // for(int iFunc=0; iFunc<fKDETemplates.size(); iFunc++) {
-    //   cout << "fKDETemplates[iFunc].Integral(fMassMin,fMassMax): " << fKDETemplates[iFunc].Integral(fMassMin,fMassMax) << endl;
-    //   fKDETemplates[iFunc].Write();
-    //   templs[iFunc].Write();
-    // }
-    // allTemplsPdf.Write();
-    // allTemplsPdfRelWeights.Write();
-    // fileCheck->Close();
-    cout << "Closed file" << endl;
   }
   void SetKDETemplates(TH1D histotempl, std::vector<std::string> templsnames,
                        std::vector<Double_t> initweights, std::vector<Double_t> minweights, std::vector<Double_t> maxweights, 
                        std::vector<Double_t> vninitweights, std::vector<Double_t> vnminweights, std::vector<Double_t> vnmaxweights, 
                        Bool_t samevnofsignal, int anchormode = TemplAnchorMode::Free, std::vector<Double_t> relcombweights = {}) {
     
-    TFile *fileCheck = new TFile("debug_spline.root", "recreate");
-    // cout << "histotempl.Integral(): " << histotempl.Integral(this->fMassMin, this->fMassMax, "width") << endl;
-    histotempl.Write("raw");
-    // // Normalize the histogram to obtain a PDF
-    // histotempl.Scale(1 / (histotempl.Integral(this->fMassMin, this->fMassMax) * histotempl.GetBinWidth(1) ) );
     histotempl.Scale(1 / histotempl.Integral(this->fMassMin, this->fMassMax), "width");
-    histotempl.Write("normalized");
-    cout << "histotempl.Integral(): " << histotempl.Integral(this->fMassMin, this->fMassMax, "width") << endl;
-
     TSpline3 *templSpline = new TSpline3(&histotempl);
     TF1 templsPdf("TemplsPdf",
                   [&, this, templSpline, histotempl](double *x, double *par) {
@@ -173,10 +110,7 @@ public:
     fVnInitWeights=vninitweights;
     fVnWeightsLowerLims=vnminweights;
     fVnWeightsUpperLims=vnmaxweights;
-    cout << "Number of KDE templates: " << fKDETemplates.size() << endl;
     for(int iFunc=0; iFunc<fKDETemplates.size(); iFunc++) {
-      cout << "fKDETemplates[iFunc].Integral(1.8,2.0): " << fKDETemplates[iFunc].Integral(1.8,2.0) << endl;
-      cout << "fKDETemplates[iFunc].Integral(1.0,2.5): " << fKDETemplates[iFunc].Integral(1.0,2.5) << endl;
       fKDETemplates[iFunc].SetName(Form("TemplFlag_%s", templsnames[iFunc].c_str()));
       fKDETemplates[iFunc].SetTitle(Form("TemplFlag_%s", templsnames[iFunc].c_str()));
     }
