@@ -198,10 +198,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments")
     parser.add_argument("config", metavar="text",
                         default="config.yaml", help="flow configuration file")
-    parser.add_argument('cutsetConfig', metavar='text',
-                        default='cutsetConfig.yaml', help='cutset configuration file')
     parser.add_argument('anres_dir', metavar='text', 
                         nargs='*', help='input ROOT files with anres')
+    parser.add_argument('--cutsetConfig', "-cc", metavar='text', type=str, nargs='?',
+                        const=None, default='cutsetConfig.yaml',
+                        help='Optional cutset configuration file (default: cutsetConfig.yaml)')    
     parser.add_argument("--proj_data", action="store_true", 
                         help="Flag to project data")
     parser.add_argument("--proj_mc", action="store_true", 
@@ -230,9 +231,7 @@ if __name__ == "__main__":
     with open(args.config, 'r') as ymlCfgFile:
         config = yaml.load(ymlCfgFile, yaml.FullLoader)
 
-    with open(args.cutsetConfig, 'r') as ymlCutSetFile:
-        cutSetCfg = yaml.load(ymlCutSetFile, yaml.FullLoader)
-    cutVars = cutSetCfg['cutvars']
+
     cent, (cent_min, cent_max) = get_centrality_bins(args.centrality)
     print(f"cent_min: {cent_min}")
     print(f"args.suffix: {args.suffix}")
@@ -290,15 +289,22 @@ if __name__ == "__main__":
     resofile.Close()
     infilemc.Close()
 
+    # with open(args.cutsetConfig, 'r') as ymlCutSetFile:
+    #     cutSetCfg = yaml.load(ymlCutSetFile, yaml.FullLoader)
+    # cutVars = cutSetCfg['cutvars']
+
+    # iCut = '00'
+    # print(f"args.cutsetConfig: {args.cutsetConfig}")
+    # if args.cutsetConfig != 'cutsetConfig.yaml':
+    #     print(f"Entered loop")
     with open(args.cutsetConfig, 'r') as ymlCutSetFile:
         cutSetCfg = yaml.load(ymlCutSetFile, yaml.FullLoader)
+        iCut = f"{int(cutSetCfg['icutset']):02d}"
     cutVars = cutSetCfg['cutvars']
-    
-    iCut = f"{int(cutSetCfg['icutset']):02d}"
 
     # load thnsparse
     # # REVIEW chuntai: 
-# # for the main workflow, only the config_flow
+    # # for the main workflow, only the config_flow
     print(f"args.proj_data: {args.proj_data}")
     print(f"args.proj_mc: {args.proj_mc}")
     sparsesFlow, sparsesReco, sparsesGen, axes = get_sparses(config, args.proj_data, args.proj_mc, args.proj_mc, config.get('anresdir', []), 

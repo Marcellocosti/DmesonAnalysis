@@ -65,11 +65,15 @@ public:
     fMaxRefl=maxRange;
     fReflections=kTRUE;
   }
-  void SetKDETemplates(int anchormode, std::vector<Double_t> relcombweights, std::vector<std::string> templsnames, std::vector<TF1> templs, 
-      std::vector<Double_t> initweights, std::vector<Double_t> minweights, std::vector<Double_t> maxweights, 
-      std::vector<Double_t> vninitweights, std::vector<Double_t> vnminweights, std::vector<Double_t> vnmaxweights, 
-      Bool_t samevnofsignal) {
+  void SetTemplatesKDE(int anchormode, std::vector<Double_t> relcombweights, std::vector<std::string> templsnames, std::vector<TF1> templs, 
+                          std::vector<Double_t> initweights, std::vector<Double_t> minweights, std::vector<Double_t> maxweights, 
+                          std::vector<Double_t> vninitweights, std::vector<Double_t> vnminweights, std::vector<Double_t> vnmaxweights, 
+                          Bool_t samevnofsignal) {
     fKDETemplates=templs;
+    for(int iFunc=0; iFunc<fKDETemplates.size(); iFunc++) {
+      fKDETemplates[iFunc].SetName(Form("TemplFlag_%s", templsnames[iFunc].c_str()));
+      fKDETemplates[iFunc].SetTitle(Form("TemplFlag_%s", templsnames[iFunc].c_str()));
+    }
     fMassInitWeights=initweights;
     fMassWeightsLowerLims=minweights;
     fMassWeightsUpperLims=maxweights;
@@ -82,12 +86,14 @@ public:
     fRelWeights=relcombweights;
     fAnchorTemplsMode=static_cast<TemplAnchorMode>(anchormode);
   }
-  void SetKDETemplates(TH1D histotempl, std::vector<std::string> templsnames,
-                       std::vector<Double_t> initweights, std::vector<Double_t> minweights, std::vector<Double_t> maxweights, 
-                       std::vector<Double_t> vninitweights, std::vector<Double_t> vnminweights, std::vector<Double_t> vnmaxweights, 
-                       Bool_t samevnofsignal, int anchormode = TemplAnchorMode::Free, std::vector<Double_t> relcombweights = {}) {
-    
-    histotempl.Scale(1 / histotempl.Integral(this->fMassMin, this->fMassMax), "width");
+  void SetTemplatesHisto(int anchormode, std::vector<Double_t> relcombweights, std::vector<std::string> templsnames, TH1D histotempl,
+                            std::vector<Double_t> initweights, std::vector<Double_t> minweights, std::vector<Double_t> maxweights, 
+                            std::vector<Double_t> vninitweights, std::vector<Double_t> vnminweights, std::vector<Double_t> vnmaxweights, 
+                            Bool_t samevnofsignal) {
+    histotempl.Scale(1 / histotempl.Integral(),"width");
+    TFile *checkfile = new TFile("file_histo.root", "recreate");
+    histotempl.Write();
+    checkfile->Close(); 
     TSpline3 *templSpline = new TSpline3(&histotempl);
     TF1 templsPdf("TemplsPdf",
                   [&, this, templSpline, histotempl](double *x, double *par) {

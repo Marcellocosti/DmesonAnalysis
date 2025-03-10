@@ -275,13 +275,15 @@ def main_v2_vs_frac(config, inputdir, outputdir, suffix, combined=False, inputdi
                 load_v2_files(inputdir)
             )
     else:
+        v2FilesSyst = load_v2_files(inputdir) 
+        fracFilesReference = load_frac_files(inputdir_combined)[:len(v2FilesSyst)]
         v2_vs_frac(
             config_flow=config,
             inputdir=inputdir,
             outputdir=outputdir,
             suffix=suffix,
-            fracFiles=load_frac_files(inputdir),
-            v2Files=load_v2_files(inputdir)
+            fracFiles=fracFilesReference,
+            v2Files=v2FilesSyst
         )
 
 if __name__ == "__main__":

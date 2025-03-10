@@ -94,7 +94,6 @@ def modify_yaml(input_config, output_dir, modifications_config):
         with open(outfile_name, 'w') as f:
             yaml.dump(new_data, f, default_flow_style=False)
 
-
 def cook_inv_mass_bins(nPtBins, terms_inv_mass_bins_lower, terms_inv_mass_bins_upper, steps):
     '''
     Cook the inv_mass_bins for each pt bin: range, min, max
@@ -129,11 +128,13 @@ def cook_inv_mass_bins(nPtBins, terms_inv_mass_bins_lower, terms_inv_mass_bins_u
 def find_threshold(nPtBins, default_values, threshold_values):
     lower_thresholds = []
     upper_thresholds = []
+    center_values = []
     
     threshold_values = sorted(threshold_values)
     
     for iPt in range(nPtBins):
         default_value = default_values[iPt]
+        center_values.append(default_value)
         lower_threshold, upper_threshold = default_value, default_value
         # if fit option can't be dependent on pt, then forcelly set the threshold
         for threshold_value in threshold_values:
@@ -144,16 +145,54 @@ def find_threshold(nPtBins, default_values, threshold_values):
                 break
         lower_thresholds.append(lower_threshold)
         upper_thresholds.append(upper_threshold)
-    return lower_thresholds, upper_thresholds
+    return lower_thresholds, upper_thresholds, center_values
+
+def find_2threshold(nPtBins, default_values, threshold_values):
+    lower_thresholds = []
+    lower_thresholds_2 = []
+    upper_thresholds = []
+    upper_thresholds_2 = []
+    center_values = []
+    
+    threshold_values = sorted(threshold_values)
+    
+    for iPt in range(nPtBins):
+        default_value = default_values[iPt]
+        lower_threshold, upper_threshold = default_value, default_value
+        lower_threshold_2, upper_threshold_2 = default_value, default_value
+        center_value = default_value
+        # if fit option can't be dependent on pt, then forcelly set the threshold
+        for threshold_value in threshold_values:
+            if threshold_value < default_value:
+                lower_threshold_2 = lower_threshold
+                lower_threshold = threshold_value
+            elif threshold_value > default_value:
+                upper_threshold = threshold_value
+                break
+        for threshold_value in reversed(threshold_values):
+            if threshold_value > default_value:
+                upper_threshold_2 = upper_threshold
+                upper_threshold = threshold_value
+            elif threshold_value < default_value:
+                lower_threshold = threshold_value
+                break
+        lower_thresholds_2.append(lower_threshold_2)
+        lower_thresholds.append(lower_threshold)
+        upper_thresholds_2.append(upper_threshold_2)
+        upper_thresholds.append(upper_threshold)
+        center_values.append(center_value)
+    return lower_thresholds, upper_thresholds, lower_thresholds_2, upper_thresholds_2, center_values
 
 def clean_flow_configs(flow_configs, output_dir):
     for config_name, config in flow_configs.items():
         config['out_dir'] = f'{output_dir}/trails/all_pt'
         config['suffix'] = config_name
-        config['skim_out_dir'] = f'{output_dir}'
+        #config['skim_out_dir'] = f'{output_dir}'
         config['minimisation']['correlated'] = False
         config['minimisation']['combined'] = True
-        config['nworkers'] = 1
+        # config['nworkers'] = 1
+        config['FixSigma'] = 0
+        config['FixSigmaFromFile'] = ''
         if config['minimisation'].get('skip_cuts', []):
             config['minimisation'].pop('skip_cuts')
         if config['minimisation'].get('systematics', []):
@@ -225,16 +264,16 @@ def generate_flow_config_variations_add(flow_configs, multi_terms, multi_terms_n
                 temp_flow_configs[term_index][terms_name] = term
         flow_configs_list.extend(temp_flow_configs)
         flow_configs_name.extend(temp_flow_configs_name)
+        if debug:
+            print(f'After cumulatively adding {multi_terms_name} variations ({len(terms)}): {len(flow_configs)}')
     # update the flow configs dict with the new flow configs
     flow_configs.update(dict(zip(flow_configs_name, flow_configs_list)))
     
-    if debug:
-        print(f'After cumulatively adding {multi_terms_name} variations ({len(terms)}): {len(flow_configs)}')
     return flow_configs
 
 def combination_fit_option(config_flow_name, cfg_flow, nPtBins, cfg_mod, output_dir):
     '''
-    TEMPLETE:
+    TEMPLATE:
 
     terms = [option1, option2, ...]
     terms_name = string of the option name
@@ -267,49 +306,56 @@ def combination_fit_option(config_flow_name, cfg_flow, nPtBins, cfg_mod, output_
     flow_configs[config_flow_name] = copy.deepcopy(cfg_flow)
     flow_configs_default_mass_bins[config_flow_name + '-default'] = copy.deepcopy(cfg_flow)
 
-    print(f"config_flow_name: {config_flow_name}")
-    print(f"fit_option_dict['Sigma']['FixSigma']: {fit_option_dict['Sigma']['FixSigma']}")
-    print(f'FixSigma: {fit_option_dict['Sigma']['FixSigma'] == 0}')
     # sigma upper, median, lower
     if fit_option_dict['Sigma']['FixSigma'] == 0:
         terms_FixSigma = [[0 for _ in range(nPtBins)] for _ in range(3)]
         flow_configs = generate_flow_config_variations(flow_configs, multi_terms=[terms_FixSigma], multi_terms_name=['FixSigma'])
     else:
-        sigma_file = ROOT.TFile(fit_option_dict['Sigma']['FixSigmaFromFile'])
-        hSigma = sigma_file.Get('hSigmaSimFit')
-        hSigma.SetDirectory(0)
-        sigma_file.Close()
+        # sigma_file = ROOT.TFile(fit_option_dict['Sigma']['FixSigmaFromFile'])
+        # hSigma = sigma_file.Get('hSigmaSimFit')
+        # hSigma.SetDirectory(0)
+        # sigma_file.Close()
         terms_FixSigma = [1 for _ in range(3)]
         terms_FixSigmaFromFile = ['' for  _ in range(3)]
         if fit_option_dict['Sigma']['FixSigma'] == -1:
-            Sigma_uppers = [hSigma.GetBinContent(iPt+1) + hSigma.GetBinError(iPt+1) for iPt in range(nPtBins)]
-            for iSig, Sigma_upper in enumerate(Sigma_uppers):
-                if Sigma_upper > 0.055:
-                    Sigma_uppers[iSig] = 0.055
-            Sigma_median = [hSigma.GetBinContent(iPt+1) for iPt in range(nPtBins)]
-            Sigma_lowers = [hSigma.GetBinContent(iPt+1) - hSigma.GetBinError(iPt+1) for iPt in range(nPtBins)]
+            # Sigma_uppers = [hSigma.GetBinContent(iPt+1) + hSigma.GetBinError(iPt+1) for iPt in range(nPtBins)]
+            # for iSig, Sigma_upper in enumerate(Sigma_uppers):
+            #     if Sigma_upper > 0.055:
+            #         Sigma_uppers[iSig] = 0.055
+            # Sigma_median = [hSigma.GetBinContent(iPt+1) for iPt in range(nPtBins)]
+            # Sigma_lowers = [hSigma.GetBinContent(iPt+1) - hSigma.GetBinError(iPt+1) for iPt in range(nPtBins)]
+            Sigma_uppers = fit_option_dict['Sigma']['upper']
+            Sigma_median = fit_option_dict['Sigma']['med']
+            Sigma_lowers = fit_option_dict['Sigma']['lower']
             terms_sigma = [Sigma_lowers, Sigma_median, Sigma_uppers]
-            flow_configs = generate_flow_config_variations(flow_configs, multi_terms=[terms_FixSigma, terms_sigma, terms_FixSigmaFromFile], multi_terms_name=['FixSigma', 'Sigma', 'FixSigmaFromFile'])
-            flow_configs_default_mass_bins = generate_flow_config_variations_add(flow_configs_default_mass_bins, multi_terms=[terms_FixSigma, terms_sigma, terms_FixSigmaFromFile], multi_terms_name=['FixSigma', 'Sigma', 'FixSigmaFromFile'])
-        else:
-            Sigma_uppers = [hSigma.GetBinContent(iPt+1) * (1 + fit_option_dict['Sigma']['FixSigma']) for iPt in range(nPtBins)]
-            for iSig, Sigma_upper in enumerate(Sigma_uppers):
-                if Sigma_upper > 0.055:
-                    Sigma_uppers[iSig] = 0.055
-            Sigma_median = [hSigma.GetBinContent(iPt+1) for iPt in range(nPtBins)]
-            Sigma_lowers = [hSigma.GetBinContent(iPt+1) * (1 - fit_option_dict['Sigma']['FixSigma']) for iPt in range(nPtBins)]
-            terms_sigma = [Sigma_lowers, Sigma_median, Sigma_uppers]
-
-            flow_configs = generate_flow_config_variations(flow_configs, multi_terms=[terms_FixSigma, terms_sigma, terms_FixSigmaFromFile], multi_terms_name=['FixSigma', 'Sigma', 'FixSigmaFromFile'])
-            flow_configs_default_mass_bins = generate_flow_config_variations_add(flow_configs_default_mass_bins, multi_terms=[terms_FixSigma, terms_sigma, terms_FixSigmaFromFile], multi_terms_name=['FixSigma', 'Sigma', 'FixSigmaFromFile'])
+            flow_configs = generate_flow_config_variations(flow_configs, multi_terms=[terms_sigma], multi_terms_name=['Sigma'])
+            flow_configs_default_mass_bins = generate_flow_config_variations_add(flow_configs_default_mass_bins, multi_terms=[terms_sigma, terms_FixSigmaFromFile], multi_terms_name=['Sigma'])
+        # else:
+        #     Sigma_uppers = [hSigma.GetBinContent(iPt+1) * (1 + fit_option_dict['Sigma']['FixSigma']) for iPt in range(nPtBins)]
+        #     for iSig, Sigma_upper in enumerate(Sigma_uppers):
+        #         if Sigma_upper > 0.055:
+        #             Sigma_uppers[iSig] = 0.055
+        #     Sigma_median = [hSigma.GetBinContent(iPt+1) for iPt in range(nPtBins)]
+        #     Sigma_lowers = [hSigma.GetBinContent(iPt+1) * (1 - fit_option_dict['Sigma']['FixSigma']) for iPt in range(nPtBins)]
+        #     terms_sigma = [Sigma_lowers, Sigma_median, Sigma_uppers]
+            # flow_configs = generate_flow_config_variations(flow_configs, multi_terms=[terms_sigma], multi_terms_name=['Sigma'])
+            # flow_configs_default_mass_bins = generate_flow_config_variations_add(flow_configs_default_mass_bins, multi_terms=[terms_sigma], multi_terms_name=['Sigma'])
     fit_opts_dependent_pt.append('Sigma')
 
     # delete the original config
-    flow_configs_default_mass_bins.pop(config_flow_name + '-ori', None)
+    flow_configs_default_mass_bins.pop(config_flow_name + '-default', None)
 
+    print(f"About to compute variations")
     # bkg function for vn
+    print(fit_option_dict)
     terms_bkg_func_vn = [[bkg_func_vn for _ in range(nPtBins)] for bkg_func_vn in fit_option_dict['BkgFuncVn']]
+    print(f"\n")
+    print(f"flow_configs: {flow_configs}")
+    print(f"\n")
     flow_configs = generate_flow_config_variations(flow_configs, multi_terms=[terms_bkg_func_vn], multi_terms_name=['BkgFuncVn'])
+    print(f"\n")
+    print(f"flow_configs: {flow_configs}")
+    print(f"\n")
     flow_configs_default_mass_bins = generate_flow_config_variations_add(flow_configs_default_mass_bins, multi_terms=[terms_bkg_func_vn], multi_terms_name=['BkgFuncVn'])
     fit_opts_dependent_pt.append('BkgFuncVn')
     
@@ -320,7 +366,7 @@ def combination_fit_option(config_flow_name, cfg_flow, nPtBins, cfg_mod, output_
     fit_opts_dependent_pt.append('BkgFunc')
     
     # rebin
-    terms_rebin = find_threshold(nPtBins, cfg_flow['Rebin'], fit_option_dict['Rebin'])
+    terms_rebin = find_2threshold(nPtBins, cfg_flow['Rebin'], fit_option_dict['Rebin'])
     flow_configs = generate_flow_config_variations(flow_configs, multi_terms=[terms_rebin], multi_terms_name=['Rebin'])
     flow_configs_default_mass_bins = generate_flow_config_variations_add(flow_configs_default_mass_bins, multi_terms=[terms_rebin], multi_terms_name=['Rebin'])
     fit_opts_dependent_pt.append('Rebin')
@@ -386,11 +432,11 @@ def slice_single_pt(flow_configs, nPtBins, fit_opts_dependent_pt, output_dir):
 def produce_pre_config(cfg_flow, cfg_mod, output_dir):
     
     pre_config_dict = {}
-    pre_config_dict['flow_files'] = cfg_flow['flow_files']
+    pre_config_dict['flow_files'] = cfg_flow['anresdir']
     pre_config_dict['ptmins'] = cfg_flow['ptmins']
     pre_config_dict['ptmaxs'] = cfg_flow['ptmaxs']
     pre_config_dict['centrality'] = cfg_flow['centrality']
-    pre_config_dict['skim_out_dir'] = output_dir
+    pre_config_dict['skim_out_dir'] = cfg_flow['skim_out_dir']
     pre_config_dict['bdt_cut'] = {}
     pre_config_dict['bdt_cut']['bkg_cuts'] = [max(cfg_flow['cut_variation']['uncorr_bdt_cut']['bkg_max'][iPt]) for iPt in range(len(cfg_flow['ptmins']))]
     pre_config_dict['bdt_cut']['sig_mins'] = [cfg_flow['cut_variation']['uncorr_bdt_cut']['sig'][iPt]['min'] for iPt in range(len(cfg_flow['ptmins']))]
@@ -409,10 +455,12 @@ def produce_pre_config(cfg_flow, cfg_mod, output_dir):
 
 def modify_yaml_bdt(config_flow, config_mod, output_dir):
     
+    print(f"Ciao function modify_yaml_bdt")
+    
     with open(config_flow, 'r') as CfgFlow:
         cfg_flow = yaml.safe_load(CfgFlow)
 
-    cfg_flow['skim_out_dir'] = f'{output_dir}'
+    #cfg_flow['skim_out_dir'] = f'{output_dir}'
     
     nPtBins = len(cfg_flow['ptmins'])
 
@@ -435,18 +483,18 @@ def modify_yaml_bdt(config_flow, config_mod, output_dir):
             bar()
 
     # # slice the flow configs into single pt bins
-    flow_configs_pt = slice_single_pt(flow_configs, nPtBins, fit_opts_dependent_pt, output_dir)
+    # flow_configs_pt = slice_single_pt(flow_configs, nPtBins, fit_opts_dependent_pt, output_dir)
 
-    with alive_bar(nPtBins * len(flow_configs_pt[0]), title='Writing yaml files, which contain single pt bins') as bar:
-        for iPt, (ptmin, ptmax) in enumerate(zip(cfg_flow['ptmins'], cfg_flow['ptmaxs'])):
-            print(f'Writing yaml files for pT bin {iPt}')
-            os.makedirs(f'{output_dir}/config_sys/pt_{int(ptmin*10)}_{int(ptmax*10)}', exist_ok=True)
-            for flow_configs_single_pt in flow_configs_pt[iPt]:
-                for config_name, config in flow_configs_single_pt.items():
-                    outfile_name = os.path.join(f'{output_dir}/config_sys/pt_{int(ptmin*10)}_{int(ptmax*10)}', f'{config_name}.yml')
-                    with open(outfile_name, 'w') as f:
-                        yaml.dump(config, f, default_flow_style=False)
-                    bar()
+    # with alive_bar(nPtBins * len(flow_configs_pt[0]), title='Writing yaml files, which contain single pt bins') as bar:
+    #     for iPt, (ptmin, ptmax) in enumerate(zip(cfg_flow['ptmins'], cfg_flow['ptmaxs'])):
+    #         print(f'Writing yaml files for pT bin {iPt}')
+    #         os.makedirs(f'{output_dir}/config_sys/pt_{int(ptmin*10)}_{int(ptmax*10)}', exist_ok=True)
+    #         for flow_configs_single_pt in flow_configs_pt[iPt]:
+    #             for config_name, config in flow_configs_single_pt.items():
+    #                 outfile_name = os.path.join(f'{output_dir}/config_sys/pt_{int(ptmin*10)}_{int(ptmax*10)}', f'{config_name}.yml')
+    #                 with open(outfile_name, 'w') as f:
+    #                     yaml.dump(config, f, default_flow_style=False)
+    #                 bar()
 
     # #____________________________________________________________________________________________________________________________________________________
     # # config_pre for sysmatical
@@ -467,7 +515,7 @@ def modify_yaml_bdt(config_flow, config_mod, output_dir):
         cfg_uncorr['skim_out_dir'] = f'{output_dir}'
         cfg_uncorr['minimisation']['correlated'] = False
         cfg_uncorr['minimisation']['combined'] = False
-        cfg_uncorr['nworkers'] = 25
+        cfg_uncorr['nworkers'] = 40
         if cfg_uncorr['minimisation'].get('skip_cuts', []):
             cfg_uncorr['minimisation'].pop('skip_cuts')
         if cfg_uncorr['minimisation'].get('systematics', []):
@@ -492,7 +540,7 @@ def modify_yaml_bdt(config_flow, config_mod, output_dir):
         cfg_comb['suffix'] = 'combined'
         cfg_comb['minimisation']['correlated'] = False
         cfg_comb['minimisation']['combined'] = True
-        # cfg_comb['minimisation']['correlatedPath'] = f'{output_dir}/pre_sys/cutvar_corr'
+        cfg_comb['minimisation']['correlatedPath'] = f'{output_dir}/pre_sys/cutvar_corr'
         yaml.dump(cfg_comb, f, default_flow_style=False)
     pass
 
@@ -505,15 +553,14 @@ if __name__ == "__main__":
                         help="multitrial systematics for BDT")
     args = parser.parse_args()
 
-    print(f"args.input_config: {args.input_config}")
-    print("CIAO MAKE YAML FOR SYST")
+    print("Ciao make_yaml_for_syst")
     if not args.multitrial_bdt:
-        print("MODIFY YAML")
+        print(f"Modify yaml no bdt")
         modify_yaml(args.input_config,
                     args.outputdir,
                     args.modifications_config)
     else:
-        print("MODIFY YAML BDT")
+        print(f"Modify yaml bdt")
         modify_yaml_bdt(args.input_config,
                          args.modifications_config,
                          args.outputdir)

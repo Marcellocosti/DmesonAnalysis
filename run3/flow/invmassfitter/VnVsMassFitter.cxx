@@ -348,15 +348,6 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
 
   fitter.Config().MinimizerOptions().SetPrintLevel(0);
   fitter.Config().SetMinimizer("Minuit2","Migrad");
-  cout << "fNParsMassSgn: " << fNParsMassSgn << endl;
-  cout << "fNParsMassBkg: " << fNParsMassBkg << endl;
-  cout << "fNParsSec: " << fNParsSec << endl;
-  cout << "fNParsSec: " << fNParsSec << endl;
-  cout << "fNParsRfl: " << fNParsRfl << endl;
-  cout << "fNParsTempls: " << fNParsTempls << endl;
-  cout << "fNParsVnBkg: " << fNParsVnBkg << endl;
-  cout << "fNParsVnSgn: " << fNParsVnSgn << endl;
-  cout << "fNParsVnSecPeak: " << fNParsVnSecPeak << endl;
   for(Int_t iPar=0; iPar<nparsvn; iPar++) {fitter.Config().ParSettings(iPar).SetName(fVnTotFunc->GetParName(iPar));}
   // fit FCN function directly
   // (specify optionally data size and flag to indicate that is a chi2 fit
@@ -448,29 +439,29 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
     fVnCompsDraw.push_back(fVnSecPeakFunc); 
   }
   if(fTemplates) {
+
+    double templScalingPar = 0.;
     for(int iTempl=0; iTempl<fKDETemplates.size(); iTempl++) {
+      switch (fAnchorTemplsMode) {
+        case TemplAnchorMode::Free:
+          templScalingPar = result.Parameter(iTempl + idxParMassTemplsScaling);
+          break;
+        case TemplAnchorMode::AnchorToFirst:
+          templScalingPar = result.Parameter(idxParMassTemplsScaling) * this->fRelWeights[iTempl];
+          break;
+        case TemplAnchorMode::AnchorToSgn:
+          templScalingPar = result.Parameter(this->fNParsMassBkg) * this->fRelWeights[iTempl];
+          break;
+        default:
+          std::cerr << "Error: Invalid fAnchorTemplsMode value!" << std::endl;
+      }
+      cout << "Mass scaling parameter of " << iTempl << ": " << templScalingPar << endl;
+      cout << "Rel weight of " << iTempl << ": " << this->fRelWeights[iTempl] << endl;
       fKDEMassTemplatesDraw.push_back(new TF1(fKDETemplates[iTempl].GetName(),
-                      [&, this, iTempl, idxParMassTemplsScaling, result] (double *x, double *par) {
-                        double templScalingPar = 0.; result.Parameter(iTempl + idxParMassTemplsScaling);
-                        switch (fAnchorTemplsMode) {
-                          case TemplAnchorMode::Free:
-                            templScalingPar += result.Parameter(iTempl + idxParMassTemplsScaling);
-                            break;
-                          case TemplAnchorMode::AnchorToFirst:
-                              templScalingPar += result.Parameter(iTempl + idxParMassTemplsScaling) * this->fRelWeights[iTempl];
-                              // cout << "templScalingPar[" << iTempl << "]: " << templScalingPar << endl;
-                              // cout << "fRelWeights[" << iTempl << "]: " << this->fRelWeights[iTempl] << endl;
-                            break;
-                          case TemplAnchorMode::AnchorToSgn:
-                            // cout << "[MassTemplates] Anchoring to signal" << endl;
-                            // cout << "[MassTemplates] this->fRelWeights[" << iTempl << "]: " << this->fRelWeights[iTempl] << endl;
-                            templScalingPar += result.Parameter(this->fNParsMassBkg) * this->fRelWeights[iTempl];
-                            break;
-                          default:
-                            std::cerr << "Error: Invalid fAnchorTemplsMode value!" << std::endl;
-                        }
-                        return templScalingPar * this->fKDETemplates[iTempl].Eval(x[0]);
-                      }, fMassMin, fMassMax, 0));
+          [&, this, iTempl, templScalingPar] (double *x, double *par) {
+            return templScalingPar * this->fKDETemplates[iTempl].Eval(x[0]);
+          }, fMassMin, fMassMax, 0));
+
       if(fTemplSameVnOfSignal) {
         fVnCompsDraw.push_back(new TF1(Form("vnTempl_%s", fKDETemplates[iTempl].GetName()),
                           [&, this, iTempl, vnSgn] (double *x, double *par) {
@@ -869,8 +860,20 @@ void VnVsMassFitter::SetParNames() {
 
   if(fReflections) {fVnTotFunc->SetParName(fNParsMassBkg+fNParsMassSgn+fNParsSec,"ReflOverS");}
   if(fTemplates) {
-    for(int iTempl=0; iTempl<this->fNParsTempls; iTempl++) {
-      fVnTotFunc->SetParName(iTempl+fNParsMassSgn+fNParsMassBkg+fNParsSec+fNParsRfl,Form("wm_%s", fKDETemplates[iTempl].GetName()));
+    switch (fAnchorTemplsMode) {
+      case TemplAnchorMode::Free:
+        for(int iTempl=0; iTempl<this->fNParsTempls; iTempl++) {
+          fVnTotFunc->SetParName(iTempl+fNParsMassSgn+fNParsMassBkg+fNParsSec+fNParsRfl,Form("wm_%s", fKDETemplates[iTempl].GetName()));
+        }
+        break;
+      case TemplAnchorMode::AnchorToFirst:
+        fVnTotFunc->SetParName(fNParsMassSgn+fNParsMassBkg+fNParsSec+fNParsRfl,"wtempls_anchor_first");
+        break;
+      case TemplAnchorMode::AnchorToSgn:
+        fVnTotFunc->SetParName(fNParsMassSgn+fNParsMassBkg+fNParsSec+fNParsRfl,"wtempls_wrt_sgn");
+        break;
+      default:
+        std::cerr << "Error: Invalid fAnchorTemplsMode value!" << std::endl;
     }
     if (!fTemplSameVnOfSignal){
       for(int iTempl=0; iTempl<this->fNParsTempls; iTempl++) {

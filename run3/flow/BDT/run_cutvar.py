@@ -50,7 +50,6 @@ def run_full_cut_variation(config_flow,
 	output = config['out_dir'] 
 	suffix = config['suffix'] 
 	vn_method = config['vn_method']
-	# n_workers = 1
 	n_workers = config['nworkers']
 
 	print(f"config_flow: {config_flow}")
@@ -70,7 +69,7 @@ def run_full_cut_variation(config_flow,
 		config_suffix = config_suffix + 1
 	os.system(f'cp {config_flow} {output_dir}/config_flow/{os.path.splitext(os.path.basename(config_flow))[0]}_{suffix}_{config_suffix}.yml')
 
-	# # Create log file
+	# Create log file
 	log = ""
 	if config.get('produceLog'):
 		os.makedirs(f"{output_dir}/logs", exist_ok=True)
@@ -90,12 +89,13 @@ def run_full_cut_variation(config_flow,
 #___________________________________________________________________________________________________________________________
 	# calculate the pT weights
 	if calc_weights:
+		print("\033[32mINFO: Calculation of weights will be performed\033[0m")
 		check_dir(f"{output_dir}/ptweights")
 		# CalcWeiPath = work_dir + "./ComputePtWeights.py"
 		CalcWeiPath = os.path.join(work_dir, "./ComputePtWeights.py")
 
 		print(f"\033[32mpython3 {CalcWeiPath} {config_flow} -o {output_dir} -s {suffix}\033[0m")
-		os.system(f"python3 {CalcWeiPath} {config_flow} -o {output_dir} -s {suffix} {log}")
+		os.system(f"python3 {CalcWeiPath} {config_flow} -o {output_dir} -s {suffix}")
 	else:
 		print("\033[33mWARNING: Calculation of weights will not be performed\033[0m")
 
@@ -109,18 +109,20 @@ def run_full_cut_variation(config_flow,
 #___________________________________________________________________________________________________________________________
 	# make yaml file
 	if make_yaml:
+		print("\033[32mINFO: Make yaml will be performed\033[0m")
 		check_dir(f"{output_dir}/config")
 		MakeyamlPath = os.path.join(work_dir, "./make_yaml_for_ml.py")
 		pre_process = "--preprocessed" if use_preprocessed else ""
 
 		print(f"\033[32mpython3 {MakeyamlPath} {config_flow} {pre_process} -o {output_dir} -s {suffix}\033[0m")
-		os.system(f"python3 {MakeyamlPath} {config_flow} {pre_process} -o {output_dir} -s {suffix} {log}")
+		os.system(f"python3 {MakeyamlPath} {config_flow} {pre_process} -o {output_dir} -s {suffix}")
 	else:
 		print("\033[33mWARNING: Make yaml will not be performed\033[0m")
 
 #___________________________________________________________________________________________________________________________
 	# Projection for MC and apply the ptweights
 	if proj_mc or proj_data:
+		print("\033[32mINFO: Projections will be performed\033[0m")
 		check_dir(f"{output_dir}/proj")
 		# ProjPath = "./proj_thn.py"
 		ProjPath = os.path.join(work_dir, "./proj_thn.py")
@@ -145,17 +147,17 @@ def run_full_cut_variation(config_flow,
 			if not os.path.exists(f"{output_dir}/ptweights/pTweight_{suffix}.root") and not given_ptweights:
 				# REVIEW: add the list of anres files
 				cmd = (
-					f"python3 {ProjPath} {proj_data} {proj_mc} {config_flow} {config_cutset} {anres_files} {pre_process} {systematics} "
-					f"-c {cent} -r {res_file} -o {output_dir} -s {suffix}_{iCutSets} {log}"
+					f"python3 {ProjPath} {proj_data} {proj_mc} {config_flow} -cc {config_cutset} {anres_files} {pre_process} {systematics} "
+					f"-c {cent} -r {res_file} -o {output_dir} -s {suffix}_{iCutSets}"
 				)
 			else:
 				ptweightsPath = given_ptWeightsPath if given_ptweights else f"{output_dir}/ptweights/pTweight_{suffix}.root"
 
 				cmd = (
-					f"python3 {ProjPath} {proj_data} {proj_mc} {config_flow} {config_cutset} {anres_files} {pre_process} {systematics} "
+					f"python3 {ProjPath} {proj_data} {proj_mc} {config_flow} -cc {config_cutset} {anres_files} {pre_process} {systematics} "
 					f"-w {ptweightsPath} hPtWeightsFONLLtimesTAMUDcent "
 					f"-wb {ptweightsPath} hPtWeightsFONLLtimesTAMUBcent "
-					f"-c {cent} -r {res_file} -o {output_dir} -s {suffix}_{iCutSets} {log}"
+					f"-c {cent} -r {res_file} -o {output_dir} -s {suffix}_{iCutSets}"
 				)
 			
 			print(f"\033[32m{cmd}\033[0m")
@@ -169,6 +171,7 @@ def run_full_cut_variation(config_flow,
 #___________________________________________________________________________________________________________________________
 	# Compute the efficiency
 	if efficiency:
+		print("\033[32mINFO: Efficiency will be performed\033[0m")
 		check_dir(f"{output_dir}/eff")
 		# EffPath = work_dir + "./../compute_efficiency.py"
 		EffPath = os.path.join(work_dir, "./../compute_efficiency.py")
@@ -178,7 +181,7 @@ def run_full_cut_variation(config_flow,
 			iCutSets = f"{i:02d}"
 			print(f"\033[32mpython3 {EffPath} {config_flow} {output_dir}/proj/proj_{suffix}_{iCutSets}.root -c {cent} -o {output_dir} -s {suffix}_{iCutSets}\033[0m")
 			print(f"\033[32mProcessing cutset {iCutSets}\033[0m")
-			os.system(f"python3 {EffPath} {config_flow} {output_dir}/proj/proj_{suffix}_{iCutSets}.root -c {cent} -o {output_dir} -s {suffix}_{iCutSets} --batch {log}")
+			os.system(f"python3 {EffPath} {config_flow} {output_dir}/proj/proj_{suffix}_{iCutSets}.root -c {cent} -o {output_dir} -s {suffix}_{iCutSets} --batch")
 		
 		with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as executor:
 			results_eff = list(executor.map(run_efficiency, range(mCutSets)))
@@ -188,19 +191,19 @@ def run_full_cut_variation(config_flow,
 #___________________________________________________________________________________________________________________________
 	# do the simulation fit to get the raw yields
 	if vn:
+		print("\033[32mINFO: vn extraction will be performed\033[0m")
 		check_dir(f"{output_dir}/ry")
 		SimFitPath = os.path.join(work_dir, "./../get_vn_vs_mass.py")
 		if config['Dmeson'] == 'Dplus' and config.get('IncludeTempls'):
 			extract_template_weights(config_flow)
 
 		print('EXTRACTED TEMPLATE WEIGHTS')
-		# quit()
 		def run_simfit(i):
 			"""Run simultaneous fit for a given cutset index."""
 			iCutSets = f"{i:02d}"
 			print(f"\033[32mpython3 {SimFitPath} {config_flow} {cent} {output_dir}/proj/proj_{suffix}_{iCutSets}.root -o {output_dir}/ry -s _{suffix}_{iCutSets} -vn {vn_method}\033[0m")
 			print(f"\033[32mProcessing cutset {iCutSets}\033[0m")
-			os.system(f"python3 {SimFitPath} {config_flow} {cent} {output_dir}/proj/proj_{suffix}_{iCutSets}.root -o {output_dir}/ry -s _{suffix}_{iCutSets} -vn {vn_method} --batch {log}")
+			os.system(f"python3 {SimFitPath} {config_flow} {cent} {output_dir}/proj/proj_{suffix}_{iCutSets}.root -o {output_dir}/ry -s _{suffix}_{iCutSets} -vn {vn_method} --batch")
 		
 		with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as executor:
 			executor.map(run_simfit, range(mCutSets))
@@ -210,18 +213,20 @@ def run_full_cut_variation(config_flow,
 #___________________________________________________________________________________________________________________________
 	# Compute the fraction by cut variation method
 	if frac_cut_var:
+		print("\033[32mINFO: Fraction by cut variation will be performed\033[0m")
 		check_dir(f"{output_dir}/CutVarFrac")
 		# CurVarFracPath = work_dir + "./compute_frac_cut_var.py"
 		CurVarFracPath = os.path.join(work_dir, "./compute_frac_cut_var.py")
 
 		print(f"\033[32mpython3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix}\033[0m")
-		os.system(f"python3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix} --batch {log}")
+		os.system(f"python3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix} --batch")
 	else:
 		print("\033[33mWARNING: Fraction by cut variation will not be performed\033[0m")
 
 #___________________________________________________________________________________________________________________________
 	# Compute fraction by Data-driven method
 	if data_driven_frac:
+		print("\033[32mINFO: Fraction by Data-driven method will be performed\033[0m")
 		check_dir(f"{output_dir}/DataDrivenFrac")
 		# DataDrivenFracPath = work_dir + "./ComputeDataDriFrac_flow.py"
 		DataDrivenFracPath = os.path.join(work_dir, "./ComputeDataDriFrac_flow.py")
@@ -278,6 +283,7 @@ def run_full_cut_variation(config_flow,
 #___________________________________________________________________________________________________________________________
 	# Compute v2 vs fraction
 	if v2_vs_frac:
+		print("\033[32mINFO: v2 vs fraction will be performed\033[0m")
 		check_dir(f"{output_dir}/V2VsFrac")
 		# v2vsFDFracPath = work_dir + "./ComputeV2vsFDFrac.py"
 		v2vsFDFracPath = os.path.join(work_dir, "./ComputeV2vsFDFrac.py")

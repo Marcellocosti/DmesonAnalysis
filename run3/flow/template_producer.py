@@ -24,9 +24,9 @@ def templ_producer_kde(tree, pt_min, pt_max, mass_min, mass_max, name, outfile='
     # print(f"var_values: {var_values}")
     # quit()
     if len(var_values) > 10:
-        kde = TKDE(len(var_values), np.asarray(var_values, 'd'), 1, 3)
+        kde = TKDE(len(var_values), np.asarray(var_values, 'd'), mass_min, mass_max)
         
-        binned_var_values = TH1D(f'hBinned', f'hBinned', 2000, 1, 3)
+        binned_var_values = TH1D(f'hBinned', f'hBinned', 2000, mass_min, mass_max)
         for var_value in var_values:
             binned_var_values.Fill(var_value)
 
@@ -201,8 +201,10 @@ def extract_template_weights(config):
                 templDfPt = templDf.query(f"fPt >= {ptmin} and fPt < {ptmax}")
                 if config.get('MlDiffWeights'):
                     if config_cut['cutvars'].get('score_bkg'):
+                        print(f"fMlScore0 >= {config_cut['cutvars']['score_bkg']['min'][iPt]} and fMlScore0 < {config_cut['cutvars']['score_bkg']['max'][iPt]}")
                         templDfPt = templDfPt.query(f"fMlScore0 >= {config_cut['cutvars']['score_bkg']['min'][iPt]} and fMlScore0 < {config_cut['cutvars']['score_bkg']['max'][iPt]}")
                     if config_cut['cutvars'].get('score_FD'):
+                        print(f"fMlScore1 >= {config_cut['cutvars']['score_FD']['min'][iPt]} and fMlScore1 < {config_cut['cutvars']['score_FD']['max'][iPt]}")
                         templDfPt = templDfPt.query(f"fMlScore1 >= {config_cut['cutvars']['score_FD']['min'][iPt]} and fMlScore1 < {config_cut['cutvars']['score_FD']['max'][iPt]}")
 
                 hist_templ = ROOT.TH1D(f"h{templName}Raw", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
@@ -215,7 +217,7 @@ def extract_template_weights(config):
                     hist_templ_BR_rew.Add(hist_templ, signalBRNorm)
                 elif iTemplate == 1:
                     hist_templ_BR_rew.Add(hist_templ, BRnorm)
-                    hist_first_templ.Add(hist_templ, BRnorm)                    
+                    hist_first_templ.Add(hist_templ, BRnorm)
                 else:
                     hist_templ_BR_rew.Add(hist_templ, BRnorm)
                     hist_templ_total.Add(hist_templ, BRnorm)
