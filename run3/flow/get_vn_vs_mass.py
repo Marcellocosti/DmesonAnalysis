@@ -441,8 +441,8 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 vnFitter[iPt].SetInitialGaussianSigma(fitConfig['Sigma'][iPt], 1)
             # nSigma4SB
             if 'NSigma4SB' in fitConfig:
-                vnFitter[iPt].SetNSigmaForVnSB(fitConfig['NSigma4SB'][iPt])
                 print(f'NSigma4SB = {fitConfig["NSigma4SB"][iPt]}')
+                vnFitter[iPt].SetNSigmaForVnSB(fitConfig['NSigma4SB'][iPt])
             # Second peak (Ds specific)
             # REVIEW TODO: please have a look at how to fixed the second peak sigma since there is a template I didn't modify it
             if secPeak and particleName == 'Ds':

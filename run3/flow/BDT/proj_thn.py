@@ -26,9 +26,12 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
     if isinstance(sparse_flow, dict):
         for isparse, (_, sparse) in enumerate(sparse_flow.items()):
             hist_mass_temp = sparse.Projection(axes['Flow']['Mass'])
+            hist_mass_temp = sparse.Projection(axes['Flow']['Pt'])
             # REVIEW: in case the Potential memory leak
             hist_mass_temp.SetName(f'hist_mass_{isparse}')
             hist_mass_temp.SetDirectory(0)
+            hist_pt_temp.SetName(f'hist_pt_{isparse}')
+            hist_pt_temp.SetDirectory(0)
             # REVIEW: I would suggest to keep th fd score distribution of a dedicated pt bin,
             # from my experience, it could help us to choose a proper cutset
             if not syst:
@@ -41,6 +44,9 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
                 hist_mass = hist_mass_temp.Clone('hist_mass')
                 hist_mass.SetDirectory(0)
                 hist_mass.Reset()
+                hist_pt = hist_pt_temp.Clone('hist_pt')
+                hist_pt.SetDirectory(0)
+                hist_pt.Reset()
                 if not syst:
                     hist_fd = hist_fd_temp.Clone('hist_fd')
                     hist_fd.SetDirectory(0)
@@ -50,6 +56,7 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
                     hist_bkg.Reset()
 
             hist_mass.Add(hist_mass_temp)
+            hist_pt.Add(hist_pt_temp)
             if not syst:
                 hist_fd.Add(hist_fd_temp)
                 hist_bkg.Add(hist_bkg_temp)
@@ -64,18 +71,24 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
     else:
         hist_mass = sparse_flow.Projection(axes['Flow']['Mass'])
         hist_mass.SetDirectory(0)
+        hist_pt = sparse_flow.Projection(axes['Flow']['Pt'])
+        hist_pt.SetDirectory(0)
         if not syst:
             hist_fd = sparse_flow.Projection(axes['Flow']['score_FD'])
             hist_fd.SetDirectory(0)
             hist_bkg = sparse_flow.Projection(axes['Flow']['score_bkg'])
             hist_bkg.SetDirectory(0)
+
         hist_vn_sp = get_vn_versus_mass(sparse_flow, inv_mass_bins, axes['Flow']['Mass'], axes['Flow']['sp'])
         hist_vn_sp.SetDirectory(0)
         if reso > 0:
             hist_vn_sp.Scale(1./reso)
 
     hist_mass.Write(f'hist_mass_cent{centMin}_{centMax}_pt{ptMin}_{ptMax}', writeopt)
+    print(f"hist_mass.Integral(): {hist_mass.Integral()}")
     hist_vn_sp.Write(f'hist_vn_sp_pt{ptMin}_{ptMax}', writeopt)
+    print(f"hist_vn_sp.Integral(): {hist_vn_sp.Integral()}")
+    hist_pt.Write(f'hist_pt_cent{centMin}_{centMax}_pt{ptMin}_{ptMax}', writeopt)
     if not syst:
         hist_fd.Write(f'hist_fd_cent{cent_min}_{cent_max}_pt{ptMin}_{ptMax}', writeopt)
         hist_bkg.Write(f'hist_bkg_cent{cent_min}_{cent_max}_pt{ptMin}_{ptMax}', writeopt)
@@ -343,6 +356,7 @@ if __name__ == "__main__":
                         sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"].GetAxis(axes['Flow']['score_FD']).SetRangeUser(cutVars['score_FD']['min'][iPt], cutVars['score_FD']['max'][iPt])
                         if 'score_bkg' in config['axestokeep']:
                             print(f"Cutting on bkg on pre-processed AnRes!")
+                            print(f"axes['Flow']['score_bkg']: {axes['Flow']['score_bkg']}")
                             sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"].GetAxis(axes['Flow']['score_bkg']).SetRangeUser(cutVars['score_bkg']['min'][iPt], cutVars['score_bkg']['max'][iPt])
                     proj_data(sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"], ptMin, ptMax, cent_min, cent_max, axes, config['inv_mass_bins'][iPt], reso, write_opt_data, args.systematics)
                     outfile.cd(ptcentdir)

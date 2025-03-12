@@ -283,6 +283,7 @@ Int_t InvMassFitter::MassFitter(Bool_t draw){
   fBkgFuncSb = CreateBackgroundFitFunction("funcbkgsb",integralHisto);
   Int_t status=-1;
   Bool_t isFitValid=kFALSE;
+  cout << "fNSigma4SideBands: " << fNSigma4SideBands << endl;
   printf("\n--- First fit with only background on the side bands - Exclusion region = %.2f sigma ---\n",fNSigma4SideBands);
   if(fTypeOfFit4Bkg==6){
     if(PrepareHighPolFit(fBkgFuncSb)){

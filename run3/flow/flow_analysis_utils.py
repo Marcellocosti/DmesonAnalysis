@@ -18,6 +18,7 @@ from PIL import Image
 import math
 import glob
 import re
+import shutil
 
 def get_vn_versus_mass(thnSparses, inv_mass_bins, mass_axis, vn_axis, debug=False):
     '''
@@ -832,6 +833,8 @@ def get_cut_sets(npt_bins, sig_cut, bkg_cut_maxs, correlated_cuts=True):
         bkg_cuts_upper = [[bkg_cut_maxs[iPt] for _ in range(nCutSets[iPt])] for iPt in range(npt_bins)]
 
     else:
+        print(f"npt_bins: {npt_bins}")
+        print(f"sig_cut: {sig_cut}")
         # load the signal cut
         sig_cuts_lower = [sig_cut[iPt]['min'] for iPt in range(npt_bins)]
         sig_cuts_upper = [sig_cut[iPt]['max'] for iPt in range(npt_bins)]
@@ -1006,7 +1009,13 @@ def cut_var_image_merger(config, cut_var_dir, suffix):
             new_img.save(f"{folder}/merged_images/cutvar_summary/CutVarV2Frac_pt_{int(config['ptmins'][iPt]*10)}_{int(config['ptmaxs'][iPt]*10)}.png")
 
     # Example usage
+    if os.path.exists(f"{cut_var_dir}/merged_images/"):
+        shutil.rmtree(f"{cut_var_dir}/merged_images/")
+
+    # Recreate the folder
+    os.makedirs(f"{cut_var_dir}/merged_images/")
     try:
+        print("Saving cut vars")
         addV2VsFracToCutVarQA(f"{cut_var_dir}/", suffix)
         image_paths = sorted(
             glob.glob(os.path.join(f"{cut_var_dir}/merged_images/cutvar_summary/", "*.png")),

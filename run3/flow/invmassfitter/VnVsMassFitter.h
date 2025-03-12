@@ -43,7 +43,10 @@ public:
   void FixMeanFromMassFit() {fMeanFixedFromMassFit=kTRUE;}
   void FixSigma2GausFromMassFit() {fSigma2GausFixedFromMassFit=kTRUE;}
   void FixFrac2GausFromMassFit() {fFrac2GausFixedFromMassFit=kTRUE;}
-  void SetNSigmaForVnSB(Int_t nsigma=4) {fNSigmaForSB=nsigma;}
+  void SetNSigmaForVnSB(Int_t nsigma=4) {
+    cout << "SetNSigmaForVnSB: " << nsigma << endl;
+    fNSigmaForSB=nsigma;
+  }
   void SetPolDegreeForBackgroundFit(Int_t deg){
     if(fMassBkgFuncType!=6) printf("fMassBkgFuncType should be set to 6 to use higher order polynomials\n");
     fPolDegreeBkg=deg;

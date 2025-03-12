@@ -610,6 +610,7 @@ Bool_t VnVsMassFitter::MassPrefit() {
   fMassMax=TMath::Min(fMassMax,tmpmax);
   
   fMassFitter = new InvMassFitter(fMassHisto,fMassMin,fMassMax,fMassBkgFuncType,fMassSgnFuncType);
+  fMassFitter->SetNSigma4SideBands(fNSigmaForSB);
   if (fMassBkgInitPars.size()>0) {
     fMassFitter->SetBkgPars(fMassBkgInitPars);
   }

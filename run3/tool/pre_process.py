@@ -55,15 +55,15 @@ def pre_process(config, ptmins, ptmaxs, centmin, centmax, axestokeep, outputDir)
 
     os.makedirs(f'{outputDir}/pre/AnRes', exist_ok=True)
     out_file = TFile(f'{outputDir}/pre/AnRes/Projections_{centmin}_{centmax}_{ptmins}_{ptmaxs}.root', 'recreate')
-    for isparse, (key, sparse) in enumerate(thnsparse_list.items()):
-        if 'Flow' in key:
-            out_file.mkdir(f'Flow_{isparse}')
-            out_file.cd(f'Flow_{isparse}')
-            for idim in range(sparse.GetNdimensions()):
-                histo = sparse.Projection(idim)
-                histo.SetName(sparse.GetAxis(idim).GetName())
-                histo.SetTitle(sparse.GetAxis(idim).GetTitle())
-                histo.Write()
+    # for isparse, (key, sparse) in enumerate(thnsparse_list.items()):
+    #     if 'Flow' in key:
+    #         out_file.mkdir(f'Flow_{isparse}')
+    #         out_file.cd(f'Flow_{isparse}')
+    #         for idim in range(sparse.GetNdimensions()):
+    #             histo = sparse.Projection(idim)
+    #             histo.SetName(sparse.GetAxis(idim).GetName())
+    #             histo.SetTitle(sparse.GetAxis(idim).GetTitle())
+    #             histo.Write()
         
     def process_pt_bin(ptmin, ptmax, centmin, centmax, bkg_max_cut, thnsparse_list, axestokeep, outputDir):
         print(f'Processing pT bin {ptmin} - {ptmax}, cent {centmin}-{centmax}')
@@ -74,6 +74,7 @@ def pre_process(config, ptmins, ptmaxs, centmin, centmax, axestokeep, outputDir)
             cloned_sparse.GetAxis(sparse_axes['Flow']['cent']).SetRangeUser(centmin, centmax)
             cloned_sparse.GetAxis(sparse_axes['Flow']['score_bkg']).SetRangeUser(0, bkg_max_cut)
             thn_proj = cloned_sparse.Projection(len(axestokeep), array.array('i', [sparse_axes['Flow'][axtokeep] for axtokeep in axestokeep]), 'O')
+            print(f"thn_proj.GetEntries(): {thn_proj.GetEntries()}")
             thn_proj.SetName(cloned_sparse.GetName())
             
             if iThn == 0:

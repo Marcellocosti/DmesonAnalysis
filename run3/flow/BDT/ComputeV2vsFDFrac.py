@@ -7,6 +7,8 @@ import argparse
 import os
 import yaml
 import sys
+import glob
+import math
 from ROOT import TFile, TCanvas, TLegend, TLatex, TGraphErrors, TF1, TH1D, TVirtualFitter, Double_t, gROOT
 from ROOT import kBlack, kAzure, kOrange
 from ROOT import kFullCircle
@@ -35,6 +37,25 @@ def load_frac_files(inputdir):
         raise ValueError(f'No DataDrivenFrac folder found in {inputdir}')
     return fracFiles
 
+def get_bin_index_from_default(inputdir, ptMin):
+    if os.path.exists(f'{inputdir}/config_flow'):
+        pattern = os.path.join(f'{inputdir}/config_flow', 'config_*.yml')
+        files = glob.glob(pattern)
+        files.sort(key=lambda f: int(f.split('_')[-1].split('.')[0]))
+        latest_config = files[-1] if files else None
+
+        # Print the result
+        if latest_config:
+            print(f"The file with the highest suffix is: {latest_config}")
+        else:
+            print("No matching files found.")
+        
+        with open(latest_config, 'r') as ymlCfgFile:
+            default_config = yaml.load(ymlCfgFile, yaml.FullLoader)
+
+        return default_config['ptmins'].index(ptMin)
+
+
 def set_frame_style(canv, Title, particleTit):
     canv.SetLeftMargin(0.15)
     canv.SetRightMargin(0.05)
@@ -58,7 +79,7 @@ def set_frame_margin(canv):
     canv.SetBottomMargin(0.15)
     canv.SetTopMargin(0.05)
 
-def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files):
+def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files, systematics=False, inputdir_comb=''):
 
     gROOT.SetBatch(True)
     CutSets, _, _, _, _ = get_cut_sets_config(config_flow)
@@ -75,17 +96,22 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files):
     
     CutSets, _, _, _, _ = get_cut_sets_config(config_flow)
 
-    if len(fracFiles) != len(v2Files):
+    if not systematics and len(fracFiles) != len(v2Files):
         raise ValueError(f'Number of eff and frac files do not match: {len(fracFiles)} != {len(v2Files)}')
+
 
     hV2, gV2, hFracFD, hFracPrompt = [], [], [], []
     avrV2XErrL, avrV2XErrH = [], []
 
+    print(f"len(fracFiles): {len(fracFiles)}")
+    print(f"len(v2Files): {len(v2Files)}")
     for fracFile, v2File in zip(fracFiles, v2Files):
         print(f"v2File: {v2File}")
         inV2File = TFile.Open(v2File)
         hV2.append(inV2File.Get('hvnSimFit'))
+        print(f"hV2[-1].GetBinContent(1): {hV2[-1].GetBinContent(1)}")
         gV2.append(inV2File.Get('gvnSimFit'))
+        
         hV2[-1].SetDirectory(0)
 
         inFracFile = TFile.Open(fracFile)
@@ -103,9 +129,51 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files):
     
     nPtBins = len(ptmins)
     for iPt, (ptMin, ptMax) in enumerate(zip(ptmins, ptmaxs)):
+        iPtDefault = get_bin_index_from_default(inputdir_comb, ptMin) if systematics else iPt
+
+        keepTrial = True
+        print(f"Systematics: {systematics}")
+        if systematics:
+            goodQualityCuts = []
+            for iv2File, v2File in enumerate(v2Files):
+                inV2File = TFile.Open(v2File)
+                keepFile = True
+                if inV2File.Get('hRedChi2SimFit').GetBinContent(iPt+1) > config['MaxChi2']:
+                    print(f"Dropping cut {iv2File} for ptbin {ptMin}-{ptMax} due to high reduced chi2: {inV2File.Get('hRedChi2SimFit').GetBinContent(iPt+1)}!\n")
+                    keepFile = False
+                if inV2File.Get('hRawYieldsSignificanceSimFit').GetBinContent(iPt+1) < config['MinSignificance']:
+                    print(f"Dropping cut {iv2File} for ptbin {ptMin}-{ptMax} due to low significance: {inV2File.Get('hRawYieldsSignificanceSimFit').GetBinContent(iPt+1)}!\n")
+                    keepFile = False
+                if inV2File.Get('hRawYieldsSignificanceSimFit').GetBinContent(iPt+1) > config['MaxSignificance']:
+                    print(f"Dropping cut {iv2File} for ptbin {ptMin}-{ptMax} due to high significance: {inV2File.Get('hRawYieldsSignificanceSimFit').GetBinContent(iPt+1)}!\n")
+                    keepFile = False
+                if math.isclose(inV2File.Get('hvnSimFit').GetBinContent(iPt+1), 0.0, rel_tol=1e-5, abs_tol=1e-7):
+                    print(f"Dropping cut {iv2File} for ptbin {ptMin}-{ptMax} as v2 value is zero: {inV2File.Get('hvnSimFit').GetBinContent(iPt+1)}!\n")
+                    keepFile = False
+
+                if keepFile:
+                    goodQualityCuts.append(iv2File)
+
+            if len(goodQualityCuts)>=3:
+                fracFiles_update = []
+                for goodCut in goodQualityCuts:
+                    for fracFile in fracFiles:
+                        if fracFile[-7:-5] == v2Files[goodCut][-7:-5]:
+                            fracFiles_update.append(fracFile)
+                fracFiles = fracFiles_update
+                print(f"Recovered fracFiles: {fracFiles}, v2Files: {v2Files}")  
+            else: 
+                keepTrial = False
+            
+        # If the flag is set to False, break out of the outer loop and terminate
+        if not keepTrial:
+            print("Exiting due to < 3 cuts with required significance and chi2 conditions.")
+            return  # Terminate the function and exit the script
+
         ptCent = (ptMin + ptMax) / 2
         nSets = CutSets[iPt]
         print(f"nSets: {nSets}")
+        print(f"gV2: {gV2}")
         print(f"CutSets[iPt]: {CutSets[iPt]}")
 
         gFracVsV2.append(TGraphErrors(-1))
@@ -120,8 +188,8 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files):
 
         v2Values = [hV2[i].GetBinContent(iPt + 1) for i in range(nSets)]
         v2Unc = [hV2[i].GetBinError(iPt + 1) for i in range(nSets)]
-        fracFDValues = [hFracFD[i].GetBinContent(iPt + 1) for i in range(nSets)]
-        fracFDUnc = [hFracFD[i].GetBinError(iPt + 1) for i in range(nSets)]
+        fracFDValues = [hFracFD[i].GetBinContent(iPtDefault + 1) for i in range(nSets)]
+        fracFDUnc = [hFracFD[i].GetBinError(iPtDefault + 1) for i in range(nSets)]
 
         for iSet, (v2, fracFD, v2Unc, fracFDUnc) in enumerate(zip(v2Values, fracFDValues, v2Unc, fracFDUnc)):
             print(f"pt: {ptCent:.4f}, v2: {v2:.4f}, fracFD: {fracFD:.4f}")
@@ -157,7 +225,11 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files):
         ptStrings.append(f"{ptMin:.1f} < #it{{p}}_{{T}} < {ptMax:.1f} GeV/#it{{c}}")
         chi2Strings.append(f"#chi^{{2}}/n.d.f = {chi2:.2f}/{ndf:.2f}")
 
+    if not keepTrial:
+        return
 
+    print("All check passed!")
+    
     # save the results
     os.makedirs(outputdir + f'/V2VsFrac', exist_ok=True)
     outFile = TFile(f'{outputdir}/V2VsFrac/V2VsFrac_{suffix}.root', "recreate")
@@ -252,11 +324,16 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files):
     cV2VsPtFD.SaveAs(f"{outputdir}/V2VsFrac/V2VsPtFD_{suffix}.png")
     cV2VsPtPrompt.SaveAs(f"{outputdir}/V2VsFrac/V2VsPtPrompt_{suffix}.png")
     cPromptAndFDV2.SaveAs(f"{outputdir}/V2VsFrac/V2VsPtPromptAndFD_{suffix}.png")
+    print(f"Finished writing!")
 
 def main_v2_vs_frac(config, inputdir, outputdir, suffix, combined=False, inputdir_combined='', outputdir_combined='', systematics=False):
-
+    print(f"inputdir_combined: {inputdir_combined}")
     if not systematics:
         if combined:
+            print("Ciao not systematics combined")
+            print(f"inputdir_combined: {inputdir_combined}")
+            print(f"outputdir_combined: {outputdir_combined}")
+            print(f"inputdir: {inputdir}")
             v2_vs_frac(
                 config,
                 inputdir_combined,
@@ -266,6 +343,7 @@ def main_v2_vs_frac(config, inputdir, outputdir, suffix, combined=False, inputdi
                 load_v2_files(inputdir)
             )
         else:
+            print("Ciao not systematics not combined")
             v2_vs_frac(
                 config,
                 inputdir,
@@ -275,6 +353,7 @@ def main_v2_vs_frac(config, inputdir, outputdir, suffix, combined=False, inputdi
                 load_v2_files(inputdir)
             )
     else:
+        print("Ciao systematics")
         v2FilesSyst = load_v2_files(inputdir) 
         fracFilesReference = load_frac_files(inputdir_combined)[:len(v2FilesSyst)]
         v2_vs_frac(
@@ -283,7 +362,9 @@ def main_v2_vs_frac(config, inputdir, outputdir, suffix, combined=False, inputdi
             outputdir=outputdir,
             suffix=suffix,
             fracFiles=fracFilesReference,
-            v2Files=v2FilesSyst
+            v2Files=v2FilesSyst,
+            systematics=True,
+            inputdir_comb=inputdir_combined
         )
 
 if __name__ == "__main__":
@@ -306,6 +387,8 @@ if __name__ == "__main__":
                         action='store_true', help="systematics")
     args = parser.parse_args()
 
+    print(f"\n\n")
+    print(f"args.config: {args.config}")
     main_v2_vs_frac(
         args.config,
         args.inputdir,

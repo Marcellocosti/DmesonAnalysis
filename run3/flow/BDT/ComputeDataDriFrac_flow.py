@@ -14,6 +14,7 @@ from utils.StyleFormatter import SetGlobalStyle # pylint: disable=import-error,n
 def data_driven_frac(outputdir, suffix, iFile, hEffPrompt, hEffFD, \
                         hPromptFrac, hFDFrac, hPromptFracCorr, hFDFracCorr, \
                         hCorrYieldPrompt, hCorrYieldFD, hCovPromptPrompt, hCovPromptFD, hCovFDFD):
+    print(f'Processing file {iFile}')
     for iPt in range(hEffPrompt.GetNbinsX()):
         ptMin = hEffPrompt.GetBinLowEdge(iPt+1)
         ptMax = ptMin+hEffPrompt.GetBinWidth(iPt+1)
@@ -166,14 +167,21 @@ def main_data_driven_frac(inputdir, outputdir, suffix, batch, combined=False, co
     if batch:
         gROOT.SetBatch()
     
+    print(f"combined: {combined}")
+    print(f"correlatedCutVarPath: {correlatedCutVarPath}")
+    print(f"outputdir_combined: {outputdir_combined}")
+    print(f"systematics: {systematics}")
     if not systematics:
         effFiles = load_eff_files(inputdir)
         hEffPrompts, hEffFDs, hPromptFracs, hFDFracs, hPromptFracCorrs, hFDFracCorrs = load_eff_histos(effFiles)
     
         if combined:
+            print(f"correlatedCutVarPath: {correlatedCutVarPath}")
             cutVarFracFiles = load_cutVarFrac_files(correlatedCutVarPath)
             hCorrYieldPrompt, hCorrYieldFD, hCovPromptPrompt, hCovPromptFD, hCovFDFD = load_cutVarFrac_histos(cutVarFracFiles)
             
+            # print(f"effFiles: {effFiles}")
+            print(f"len(effFiles): {len(effFiles)}")
             for iFile in range(len(effFiles)):
                 data_driven_frac(
                     outputdir_combined,

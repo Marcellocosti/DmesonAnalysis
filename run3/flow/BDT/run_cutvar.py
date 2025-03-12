@@ -238,6 +238,7 @@ def run_full_cut_variation(config_flow,
 				print(f"\033[32mpython3 {DataDrivenFracPath} -i {output_dir} -o {output_dir} -s {suffix} -b\033[0m")
 				main_data_driven_frac(inputdir=output_dir, outputdir=output_dir, suffix=suffix, batch=True, combined=False)
 			else:
+				print(f"CIAOOOO")
 				# which means this is for trails, or the reference combined method
 				# correlatedCutVarPath was written in config TODO
 				# correlatedCutVarPath = os.path.join('/'.join(output_dir.split('/')[:-3]), 'pre_sys/cutvar_corr')				
@@ -257,8 +258,8 @@ def run_full_cut_variation(config_flow,
 				main_data_driven_frac(inputdir=output_dir, outputdir=output_dir, suffix=suffix, batch=True, combined=False)
 			else:
 				if combined:
-					print(f"\033[32mthe combined method will be performed\033[0m")
-					check_dir(f"{output_dir}_combined/DataDrivenFrac")
+					print(f"\033[32mThe combined method will be performed\033[0m")
+					# check_dir(f"{output_dir}_combined/DataDrivenFrac")
 					# the path of corresponding results with correlated cut method
 					if config['minimisation'].get('correlatedPath'):
 						correlatedPath = config['minimisation']['correlatedPath']
@@ -268,6 +269,7 @@ def run_full_cut_variation(config_flow,
 							exit()
 						#! not run the combined method with uncorrelated one anymore
 						# TODO: clean the parameters
+						print(f"\033[32mCommand: python3 {DataDrivenFracPath} -i {output_dir} -o {output_dir} -s {suffix} -b\033[0m")
 						main_data_driven_frac(inputdir=output_dir, outputdir=output_dir, suffix=suffix, batch=True, \
 												combined=True, correlatedCutVarPath=correlatedPath, outputdir_combined=output_dir)
 					else:
@@ -284,7 +286,7 @@ def run_full_cut_variation(config_flow,
 	# Compute v2 vs fraction
 	if v2_vs_frac:
 		print("\033[32mINFO: v2 vs fraction will be performed\033[0m")
-		check_dir(f"{output_dir}/V2VsFrac")
+		# check_dir(f"{output_dir}/V2VsFrac")
 		# v2vsFDFracPath = work_dir + "./ComputeV2vsFDFrac.py"
 		v2vsFDFracPath = os.path.join(work_dir, "./ComputeV2vsFDFrac.py")
 
@@ -295,7 +297,7 @@ def run_full_cut_variation(config_flow,
 				print(f"\033[32mpython3 {v2vsFDFracPath} {config_flow} -i {output_dir} -o {output_dir} -s {suffix} -b\033[0m")
 				main_v2_vs_frac(config=config_flow, inputdir=output_dir, outputdir=output_dir, suffix=suffix, combined=False)
 			else:
-       		# which means this is for trails, or the reference combined method
+			# which means this is for trails, or the reference combined method
 				main_v2_vs_frac(config=config_flow, inputdir=output_dir, outputdir=output_dir, suffix=suffix, combined=False)
 		#===========================================================================================================================
 		else:
