@@ -315,6 +315,14 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
     if(fFrac2GausFixed==2 || fFrac2GausFixedFromMassFit) {fitter.Config().ParSettings(fNParsMassBkg+3).Fix();}
     if(fSigma2GausFixed==2 || fSigma2GausFixedFromMassFit) {fitter.Config().ParSettings(fNParsMassBkg+4).Fix();}
   }
+  // if(fMassSgnFuncType==kDoubleCBAsymm || fMassSgnFuncType==kDoubleCBSymm) {
+  //   // Leave only the sigma free
+  //   for (int iSgnPar=0; iSgnPar<fNParsMassSgn; iSgnPar++) {
+  //     if (iSgnPar != 1) {
+  //       fitter.Config().ParSettings(fNParsMassBkg+iSgnPar+1).Fix();
+  //     }
+  //   }
+  // }
   if(fSecondPeak) {
     if(fFixSecMass) {fitter.Config().ParSettings(fNParsMassBkg+fNParsMassSgn+1).Fix();}
     if(fFixSecWidth) {fitter.Config().ParSettings(fNParsMassBkg+fNParsMassSgn+2).Fix();}
@@ -349,6 +357,23 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
   fitter.Config().MinimizerOptions().SetPrintLevel(0);
   fitter.Config().SetMinimizer("Minuit2","Migrad");
   for(Int_t iPar=0; iPar<nparsvn; iPar++) {fitter.Config().ParSettings(iPar).SetName(fVnTotFunc->GetParName(iPar));}
+  if (fMassSgnInitPars.size()>0 && (fMassSgnFuncType==kDoubleCBAsymm || fMassSgnFuncType==kDoubleCBSymm)) {
+    int skipPars = 3;
+    for (int iSgnPar=0; iSgnPar<fNParsMassSgn-skipPars; iSgnPar++) {
+      // +1 because the first parameter is the normalization to 
+      //  the Signal integral and we do not want to fix it
+      cout << "Setting parameter " << iSgnPar+fNParsMassBkg+skipPars << " to: " << this->fMassSgnInitPars[skipPars*3+iSgnPar*3] << endl;
+      fitter.Config().ParSettings(iSgnPar+fNParsMassBkg+skipPars).SetValue(this->fMassSgnInitPars[skipPars*3+iSgnPar*3]);
+      if(this->fMassSgnInitPars[skipPars*3+iSgnPar*3+1] > this->fMassSgnInitPars[skipPars*3+iSgnPar*3+2]) {
+        cout << "Fixing!" << endl;
+        fitter.Config().ParSettings(iSgnPar+fNParsMassBkg+skipPars).Fix();
+      } else {
+        cout << "Not fixing!" << endl;
+        fitter.Config().ParSettings(iSgnPar+fNParsMassBkg+skipPars).SetLimits(this->fMassSgnInitPars[skipPars*3+iSgnPar*3+1], this->fMassSgnInitPars[skipPars*3+iSgnPar*3+2]);
+      }
+    }
+  }
+
   // fit FCN function directly
   // (specify optionally data size and flag to indicate that is a chi2 fit
   Bool_t isFitOk = fitter.FitFCN(nparsvn,globalChi2,0,dataMass.Size()+dataVn.Size(),kFALSE);
@@ -611,6 +636,9 @@ Bool_t VnVsMassFitter::MassPrefit() {
   
   fMassFitter = new InvMassFitter(fMassHisto,fMassMin,fMassMax,fMassBkgFuncType,fMassSgnFuncType);
   fMassFitter->SetNSigma4SideBands(fNSigmaForSB);
+  if (fMassSgnFuncType == kDoubleCBAsymm || fMassSgnFuncType == kDoubleCBSymm) {
+    fMassFitter->SetSgnPars(fMassSgnInitPars);
+  }
   if (fMassBkgInitPars.size()>0) {
     fMassFitter->SetBkgPars(fMassBkgInitPars);
   }
@@ -709,6 +737,14 @@ void VnVsMassFitter::DefineNumberOfParameters() {
       fNParsMassSgn=3;
       break;
     case 1: //double gaus
+      fNParsMassSgn=5;
+      break;
+    case 3:
+      cout << "Setting number of parameters for signal to 7" << endl;
+      fNParsMassSgn=7;
+      break;
+    case 4:
+      cout << "Setting number of parameters for signal to 5" << endl;
       fNParsMassSgn=5;
       break;
     default:
@@ -818,6 +854,23 @@ void VnVsMassFitter::SetParNames() {
       fVnTotFunc->SetParName(fNParsMassBkg+3,"Frac");
       fVnTotFunc->SetParName(fNParsMassBkg+4,"Sigma2");
       break;
+    case 3: //asymmetric crystalball
+      fVnTotFunc->SetParName(fNParsMassBkg,"SgnInt");
+      fVnTotFunc->SetParName(fNParsMassBkg+1,"Mean");
+      fVnTotFunc->SetParName(fNParsMassBkg+2,"Sigma");
+      fVnTotFunc->SetParName(fNParsMassBkg+3,"Alpha1");
+      fVnTotFunc->SetParName(fNParsMassBkg+4,"N1");
+      fVnTotFunc->SetParName(fNParsMassBkg+5,"Alpha2");
+      fVnTotFunc->SetParName(fNParsMassBkg+6,"N2");
+      break;
+    case 4: //symmetric crystalball
+      fVnTotFunc->SetParName(fNParsMassBkg,"SgnInt");
+      fVnTotFunc->SetParName(fNParsMassBkg+1,"Mean");
+      fVnTotFunc->SetParName(fNParsMassBkg+2,"Sigma");
+      fVnTotFunc->SetParName(fNParsMassBkg+3,"Alpha");
+      fVnTotFunc->SetParName(fNParsMassBkg+4,"N");
+      break;
+
     default:
       printf("Error in setting signal par names: check fMassSgnFuncType");
       break;
@@ -990,6 +1043,56 @@ void VnVsMassFitter::Significance(Double_t min, Double_t max, Double_t &signific
   return;
 }
 
+//__________________________________________________________________________
+Double_t DoubleSidedCBAsymmForVn(double x, double mu, double width, double a1, double n1, double a2, double n2)
+{
+  // cout << "n2: " << n2 << ", a2: " << a2 << endl;
+  double u   = (x-mu)/width;
+  double A1  = TMath::Power(n1/TMath::Abs(a1),n1)*TMath::Exp(-a1*a1/2);
+  double A2  = TMath::Power(n2/TMath::Abs(a2),n2)*TMath::Exp(-a2*a2/2);
+  double B1  = n1/TMath::Abs(a1) - TMath::Abs(a1);
+  double B2  = n2/TMath::Abs(a2) - TMath::Abs(a2);
+
+  double result(0);
+  if      (u<-a1) {
+    // left tail
+    result += A1*TMath::Power(B1-u,-n1);
+  }
+  else if (u>-a1 && u<a2) { 
+    // gaussian core
+    result += TMath::Exp(-u*u/2);
+  }
+  else {
+    // right tail
+    // cout << "Right";
+    result += A2*TMath::Power(B2+u,-n2);
+  }
+  return result;
+}
+
+//__________________________________________________________________________
+Double_t DoubleSidedCBSymmForVn(double x, double mu, double width, double a, double n)
+{
+  double u  = (x-mu)/width;
+  double A  = TMath::Power(n/TMath::Abs(a),n)*TMath::Exp(-a*a/2);
+  double B  = n/TMath::Abs(a) - TMath::Abs(a);
+
+  double result(0);
+  if      (u<-a) {
+    // left tail
+    result += A*TMath::Power(B-u,-n);
+  } 
+  else if (u>-a && u<a) {
+    // gaussian core
+    result += TMath::Exp(-u*u/2);
+  }
+  else {
+    // right tail
+    result += A*TMath::Power(B+u,-n);
+  }
+  return result;
+}
+
 //________________________________________________________________
 Double_t VnVsMassFitter::GetGausPDF(Double_t x, Double_t mean, Double_t sigma) {
 
@@ -1057,6 +1160,13 @@ Double_t VnVsMassFitter::MassSignal(Double_t *m, Double_t *pars) {
     case 1:
       return pars[0]*(pars[3]*GetGausPDF(m[0],pars[1],pars[2])+(1-pars[3])*GetGausPDF(m[0],pars[1],pars[4]));
       break;
+    case 3:
+      return pars[0]*DoubleSidedCBAsymmForVn(m[0],pars[1],pars[2],pars[3],pars[4],pars[5],pars[6]);
+      break;
+    case 4:
+      return pars[0]*DoubleSidedCBSymmForVn(m[0],pars[1],pars[2],pars[3],pars[4]);
+      break;
+
   }
 
   return 0;

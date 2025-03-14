@@ -368,6 +368,13 @@ Int_t InvMassFitter::MassFitter(Bool_t draw){
 
   fTotFunc = CreateTotalFitFunction("funcmass");
 
+  // Fix all parameters
+  int skipPars = 3;
+  fTotFunc->SetParameter(fNParsBkg, 1000);
+  for (int iPar=0; iPar<fNParsSig; iPar++) {
+    fTotFunc->FixParameter(iPar+fNParsBkg+skipPars, fTotFunc->GetParameter(iPar+fNParsBkg+skipPars));
+  }
+
   if(doFinalFit){
     printf("\n--- Final fit with signal+background on the full range ---\n");
     // for(int iPar=0; iPar<fNParsBkg+fNParsRfl+fNParsTempls+fNParsSec+fNParsSig; iPar++) {
@@ -634,40 +641,56 @@ TF1* InvMassFitter::CreateSignalFitFunction(TString fname, Double_t integsig){
     else funcsig->SetParLimits(4,0.,20.);
     funcsig->SetParNames("SgnInt","Mean","Sigma1","Frac","RatioSigma12");
   }
-  if (fTypeOfFit4Sgn==kDoubleCBAsymm) {
-    cout << "Asymmetric crystalball" << endl;
-    for(Int_t ipar=0; ipar<fNParsSig; ipar++){
+  // if (fTypeOfFit4Sgn==kDoubleCBAsymm) {
+  //   cout << "Asymmetric crystalball" << endl;
+  //   for(Int_t ipar=1; ipar<fNParsSig; ipar++){
+  //     cout << "fMassSigInitPars.size(): " << fMassSigInitPars.size() << endl;  
+  //     if(fMassSigInitPars.size()>0) {
+  //       cout << "Setting par" << ipar << ": " << this->fMassSigInitPars[ipar*3] << ", " << this->fMassSigInitPars[ipar*3+1] << ", " << this->fMassSigInitPars[ipar*3+2] << endl;
+  //       funcsig->SetParameter(ipar,this->fMassSigInitPars[ipar*3]);
+  //       if(this->fMassSigInitPars[ipar*3+1] > this->fMassSigInitPars[ipar*3+2]) {
+  //         cout << "Fixing parameter!" << endl;
+  //         funcsig->FixParameter(ipar,this->fMassSigInitPars[ipar*3]);
+  //       } else {
+  //         funcsig->SetParLimits(ipar,this->fMassSigInitPars[ipar*3+1], this->fMassSigInitPars[ipar*3+2]);
+  //       }
+  //     }
+  //   }
+  //   cout << "Setting par name for DoubleCBAsymm" << endl;
+  //   // funcsig->SetParNames("SgnInt","Mean","Sigma","alpha1","n1","alpha2","n2");
+  // }
+
+
+  // used for v2 fit but not for mc fit
+  if (fTypeOfFit4Sgn==kDoubleCBSymm) {
+    int skipPars = 1;
+    for(Int_t ipar=0; ipar<fNParsSig-skipPars; ipar++){
       cout << "fMassSigInitPars.size(): " << fMassSigInitPars.size() << endl;  
       if(fMassSigInitPars.size()>0) {
-        cout << "Setting par" << ipar << ": " << this->fMassSigInitPars[ipar*3] << ", " << this->fMassSigInitPars[ipar*3+1] << ", " << this->fMassSigInitPars[ipar*3+2] << endl;
-        funcsig->SetParameter(ipar,this->fMassSigInitPars[ipar*3]);
-        if(this->fMassSigInitPars[ipar*3+1] > this->fMassSigInitPars[ipar*3+2]) {
-          cout << "Fixing parameter!" << endl;
-          funcsig->FixParameter(ipar,this->fMassSigInitPars[ipar*3]);
-        } else {
-          funcsig->SetParLimits(ipar,this->fMassSigInitPars[ipar*3+1], this->fMassSigInitPars[ipar*3+2]);
-        }
+        cout << "Setting par" << ipar+skipPars << ": " << this->fMassSigInitPars[3*skipPars+ipar*3] << ", " << this->fMassSigInitPars[3*skipPars+ipar*3+1] << ", " << this->fMassSigInitPars[3*skipPars+ipar*3+2] << endl;
+        funcsig->SetParameter(ipar+skipPars,this->fMassSigInitPars[3*skipPars+ipar*3]);
+        // funcsig->SetParLimits(ipar+skipPars,this->fMassSigInitPars[3*skipPars+ipar*3+1], this->fMassSigInitPars[3*skipPars+ipar*3+2]);
       }
     }
-    cout << "Setting par name for DoubleCBAsymm" << endl;
-    // funcsig->SetParNames("SgnInt","Mean","Sigma","alpha1","n1","alpha2","n2");
   }
   if (fTypeOfFit4Sgn==kDoubleCBSymm) {
-    for(Int_t ipar=0; ipar<fNParsSig; ipar++){
+    int skipPars = 3;
+    for(Int_t ipar=0; ipar<fNParsSig-skipPars; ipar++){
       cout << "fMassSigInitPars.size(): " << fMassSigInitPars.size() << endl;  
       if(fMassSigInitPars.size()>0) {
-        cout << "Setting par" << ipar << ": " << this->fMassSigInitPars[ipar*3] << ", " << this->fMassSigInitPars[ipar*3+1] << ", " << this->fMassSigInitPars[ipar*3+2] << endl;
-        funcsig->SetParameter(ipar,this->fMassSigInitPars[ipar*3]);
-        if(this->fMassSigInitPars[ipar*3+1] > this->fMassSigInitPars[ipar*3+2]) {
+        cout << "Setting par" << ipar+skipPars << ": " << this->fMassSigInitPars[3*skipPars+ipar*3] << ", " << this->fMassSigInitPars[3*skipPars+ipar*3+1] << ", " << this->fMassSigInitPars[3*skipPars+ipar*3+2] << endl;
+        funcsig->SetParameter(ipar+skipPars,this->fMassSigInitPars[3*skipPars+ipar*3]);
+        if(this->fMassSigInitPars[3*skipPars+ipar*3+1] > this->fMassSigInitPars[3*skipPars+ipar*3+2]) {
           cout << "Fixing parameter!" << endl;
-          funcsig->FixParameter(ipar,this->fMassSigInitPars[ipar*3]);
+          funcsig->FixParameter(ipar+skipPars,this->fMassSigInitPars[3*skipPars+ipar*3]);
         } else {
-          funcsig->SetParLimits(ipar,this->fMassSigInitPars[ipar*3+1], this->fMassSigInitPars[ipar*3+2]);
+          funcsig->SetParLimits(ipar+skipPars,this->fMassSigInitPars[3*skipPars+ipar*3+1], this->fMassSigInitPars[3*skipPars+ipar*3+2]);
         }
       }
     }
     cout << "Setting par name for DoubleCBSymm" << endl;
     funcsig->SetParNames("SgnInt","Mean","Sigma","alpha","n");
+    funcsig->SetParameter(1,1.861);
   }
   return funcsig;
 }

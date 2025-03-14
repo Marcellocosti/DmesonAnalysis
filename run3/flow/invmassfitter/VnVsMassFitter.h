@@ -23,7 +23,7 @@ public:
   ~VnVsMassFitter();
 
   enum ETypeOfBkg{kExpo=0, kLin=1, kPol2=2, kNoBk=3, kPow=4, kPowEx=5, kPoln=6};
-  enum ETypeOfSgn{kGaus=0, k2Gaus=1};
+  enum ETypeOfSgn{kGaus=0, k2Gaus=1, kDoubleCBAsymm=3, kDoubleCBSymm=4};
   enum ETypeOfVnRfl{kSameVnSignal=0, kOppVnSignal=1, kSameVnBkg=2, kFreePar=3};
   enum TemplAnchorMode{Free=0, AnchorToFirst=1, AnchorToSgn=2};
 
@@ -127,6 +127,10 @@ public:
   }
   void SetBkgPars(std::vector<Double_t> initpars) {
     fMassBkgInitPars = initpars;
+  }
+  void SetSgnPars(std::vector<Double_t> initpars) {
+    cout << "SetSgnPars" << endl;
+    fMassSgnInitPars = initpars;
   }
   void SetInitialReflOverS(Double_t rovers){fRflOverSig=rovers;}
   void SetFixReflOverS(Double_t rovers){
@@ -371,6 +375,7 @@ private:
   Int_t                 fSigma2GausFixed;               /// flag to fix second peak width in case of k2Gaus
   Int_t                 fFrac2GausFixed;                /// flag to fix fraction of second gaussian in case of k2Gaus
   std::vector<Double_t> fMassBkgInitPars;               /// init values of the templates' weights
+  std::vector<Double_t> fMassSgnInitPars;               /// init values of the templates' weights
   Int_t                 fPolDegreeBkg;                  /// degree of polynomial expansion for back fit (option 6 for back)
   Int_t                 fPolDegreeVnBkg;                /// degree of polynomial expansion for vn back fit (option 6 for back)
   Bool_t                fReflections;                   /// flag use/not use reflections

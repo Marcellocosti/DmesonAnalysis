@@ -125,10 +125,14 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
             SgnFunc.append(InvMassFitter.kGaus)
         elif sgnStr == 'k2Gaus':
             SgnFunc.append(InvMassFitter.k2Gaus)
+        elif sgnStr == 'kDoubleCBAsymm':
+            SgnFunc.append(InvMassFitter.kDoubleCBAsymm)
+        elif sgnStr == 'kDoubleCBSymm':
+            SgnFunc.append(InvMassFitter.kDoubleCBSymm)
         elif sgnStr == 'k2GausSigmaRatioPar':
             SgnFunc.append(InvMassFitter.k2GausSigmaRatioPar)
         else:
-            print('ERROR: only kGaus, k2Gaus and k2GausSigmaRatioPar signal functions supported! Exit!')
+            print('ERROR: only kGaus, k2Gaus, kDoubleCBAsymm, kDoubleCBSymm and k2GausSigmaRatioPar signal functions supported! Exit!')
             sys.exit()
 
     Templates = []
@@ -507,8 +511,29 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 if fitConfig['InitBkg'][iPt] != []:
                     vnFitter[iPt].SetBkgPars(list(itertools.chain(*fitConfig['InitBkg'][iPt])))
 
+            if fitConfig["SgnFunc"][iPt] == "kDoubleCBSymm" or fitConfig["SgnFunc"][iPt] == "kDoubleCBAsymm":
+                initParsSgn = []
+                print(f'fitConfig["PrefitMCPars"][iPt]: {fitConfig["PrefitMCPars"][iPt]}')
+                fileWithPars = TFile.Open(fitConfig["PrefitMCPars"][iPt], 'r')
+                print(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}/hSgnMCFuncPars')
+                histoPars = fileWithPars.Get(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}/hSgnMCFuncPars')
+                for iBin in range(histoPars.GetNbinsX()):
+                    ### First parameter of histogram is normalization
+                    initParsSgn.append(histoPars.GetBinContent(iBin+1))
+                    print(f"initParsSgn: {initParsSgn}")
+                    if iBin == 0:
+                        initParsSgn.append(0)
+                        initParsSgn.append(100000)
+                    else:
+                        initParsSgn.append(histoPars.GetBinContent(iBin+1) - (histoPars.GetBinError(iBin+1) * 3) )
+                        initParsSgn.append(-histoPars.GetBinContent(iBin+1) + (histoPars.GetBinError(iBin+1) * 3) )
+                    
+                vnFitter[iPt].SetSgnPars(initParsSgn)
+                
+            # quit()
             # collect fit results
             vnFitter[iPt].SimultaneousFit(False)
+            # quit()
             # REVIEW: delete this vnComps = vnFitter[iPt].GetVnCompsFuncts()
             vnResults = get_vnfitter_results(vnFitter[iPt], secPeak, useRefl, useTemplates, fitConfig.get('DrawVnComps'))
             fTotFuncMass.append(vnResults['fTotFuncMass'])
