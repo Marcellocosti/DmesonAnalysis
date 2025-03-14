@@ -240,6 +240,14 @@ void InvMassFitter::SetNumberOfParams(){
   case 2:
     fNParsSig=5;
     break;
+  case 3:
+    cout << "Setting number of parameters for signal to 7" << endl;
+    fNParsSig=7;
+    break;
+  case 4:
+    cout << "Setting number of parameters for signal to 5" << endl;
+    fNParsSig=5;
+    break;
   default:
     printf("Error in computing fNParsSig: check fTypeOfFit4Sgn");
     break;
@@ -269,6 +277,7 @@ void InvMassFitter::SetNumberOfParams(){
   else fNParsSec=0;
 
 }
+
 //__________________________________________________________________________
 Int_t InvMassFitter::MassFitter(Bool_t draw){
   /// Main function to fit the invariant mass distribution
@@ -292,11 +301,14 @@ Int_t InvMassFitter::MassFitter(Bool_t draw){
       status=0;
       isFitValid=kTRUE;
     }
-  }
-  else{
+  } else if (fTypeOfFit4Bkg != 3) {
     TFitResultPtr resultptr_bkg=fHistoInvMass->Fit("funcbkgsb",Form("R,S,%s,+,0",fFitOption.Data()));
     status=(Int_t) resultptr_bkg;
     isFitValid=resultptr_bkg->IsValid();
+  } else{
+    // no bkg included
+    status=0;
+    isFitValid=kTRUE;
   }
   fBkgFuncSb->SetLineColor(kGray+1);
   if ( (status!=0 && !fAcceptValidFit) || (fAcceptValidFit && !isFitValid) ){
@@ -321,6 +333,7 @@ Int_t InvMassFitter::MassFitter(Bool_t draw){
     }
   }
   fBkgFunc->SetLineColor(kGray+1);
+
 
   printf("\n--- Estimate signal counts in the peak region ---\n");
   Double_t estimSignal=CheckForSignal(fMass,fSigmaSgn);
@@ -352,6 +365,7 @@ Int_t InvMassFitter::MassFitter(Bool_t draw){
     printf("   ---> Final fit includes templates\n");
     fTemplFunc = CreateTemplatesFunction("ftempl");
   }
+
   fTotFunc = CreateTotalFitFunction("funcmass");
 
   if(doFinalFit){
@@ -570,6 +584,7 @@ TF1* InvMassFitter::CreateSignalFitFunction(TString fname, Double_t integsig){
   ///
 
   SetNumberOfParams();
+  cout << "fNParsSig: " << fNParsSig << endl;
   TF1* funcsig =  new TF1(fname.Data(),this,&InvMassFitter::FitFunction4Sgn,fMinMass,fMaxMass,fNParsSig,"InvMassFitter","FitFunction4Sgn");
   if(fTypeOfFit4Sgn==kGaus){
     funcsig->SetParameter(0,integsig);
@@ -618,6 +633,41 @@ TF1* InvMassFitter::CreateSignalFitFunction(TString fname, Double_t integsig){
     if(fFixedRatio2GausSigma) funcsig->FixParameter(4,fRatio2GausSigma);
     else funcsig->SetParLimits(4,0.,20.);
     funcsig->SetParNames("SgnInt","Mean","Sigma1","Frac","RatioSigma12");
+  }
+  if (fTypeOfFit4Sgn==kDoubleCBAsymm) {
+    cout << "Asymmetric crystalball" << endl;
+    for(Int_t ipar=0; ipar<fNParsSig; ipar++){
+      cout << "fMassSigInitPars.size(): " << fMassSigInitPars.size() << endl;  
+      if(fMassSigInitPars.size()>0) {
+        cout << "Setting par" << ipar << ": " << this->fMassSigInitPars[ipar*3] << ", " << this->fMassSigInitPars[ipar*3+1] << ", " << this->fMassSigInitPars[ipar*3+2] << endl;
+        funcsig->SetParameter(ipar,this->fMassSigInitPars[ipar*3]);
+        if(this->fMassSigInitPars[ipar*3+1] > this->fMassSigInitPars[ipar*3+2]) {
+          cout << "Fixing parameter!" << endl;
+          funcsig->FixParameter(ipar,this->fMassSigInitPars[ipar*3]);
+        } else {
+          funcsig->SetParLimits(ipar,this->fMassSigInitPars[ipar*3+1], this->fMassSigInitPars[ipar*3+2]);
+        }
+      }
+    }
+    cout << "Setting par name for DoubleCBAsymm" << endl;
+    // funcsig->SetParNames("SgnInt","Mean","Sigma","alpha1","n1","alpha2","n2");
+  }
+  if (fTypeOfFit4Sgn==kDoubleCBSymm) {
+    for(Int_t ipar=0; ipar<fNParsSig; ipar++){
+      cout << "fMassSigInitPars.size(): " << fMassSigInitPars.size() << endl;  
+      if(fMassSigInitPars.size()>0) {
+        cout << "Setting par" << ipar << ": " << this->fMassSigInitPars[ipar*3] << ", " << this->fMassSigInitPars[ipar*3+1] << ", " << this->fMassSigInitPars[ipar*3+2] << endl;
+        funcsig->SetParameter(ipar,this->fMassSigInitPars[ipar*3]);
+        if(this->fMassSigInitPars[ipar*3+1] > this->fMassSigInitPars[ipar*3+2]) {
+          cout << "Fixing parameter!" << endl;
+          funcsig->FixParameter(ipar,this->fMassSigInitPars[ipar*3]);
+        } else {
+          funcsig->SetParLimits(ipar,this->fMassSigInitPars[ipar*3+1], this->fMassSigInitPars[ipar*3+2]);
+        }
+      }
+    }
+    cout << "Setting par name for DoubleCBSymm" << endl;
+    funcsig->SetParNames("SgnInt","Mean","Sigma","alpha","n");
   }
   return funcsig;
 }
@@ -674,8 +724,60 @@ TF1* InvMassFitter::CreateTotalFitFunction(TString fname){
       // ftot->FixParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,0.);
     }
   }
+
   return ftot;
 }
+
+//__________________________________________________________________________
+Double_t DoubleSidedCBAsymm(double x, double mu, double width, double a1, double n1, double a2, double n2)
+{
+  // cout << "n2: " << n2 << ", a2: " << a2 << endl;
+  double u   = (x-mu)/width;
+  double A1  = TMath::Power(n1/TMath::Abs(a1),n1)*TMath::Exp(-a1*a1/2);
+  double A2  = TMath::Power(n2/TMath::Abs(a2),n2)*TMath::Exp(-a2*a2/2);
+  double B1  = n1/TMath::Abs(a1) - TMath::Abs(a1);
+  double B2  = n2/TMath::Abs(a2) - TMath::Abs(a2);
+
+  double result(0);
+  if      (u<-a1) {
+    // left tail
+    result += A1*TMath::Power(B1-u,-n1);
+  }
+  else if (u>-a1 && u<a2) { 
+    // gaussian core
+    result += TMath::Exp(-u*u/2);
+  }
+  else {
+    // right tail
+    // cout << "Right";
+    result += A2*TMath::Power(B2+u,-n2);
+  }
+  return result;
+}
+
+//__________________________________________________________________________
+Double_t DoubleSidedCBSymm(double x, double mu, double width, double a, double n)
+{
+  double u  = (x-mu)/width;
+  double A  = TMath::Power(n/TMath::Abs(a),n)*TMath::Exp(-a*a/2);
+  double B  = n/TMath::Abs(a) - TMath::Abs(a);
+
+  double result(0);
+  if      (u<-a) {
+    // left tail
+    result += A*TMath::Power(B-u,-n);
+  } 
+  else if (u>-a && u<a) {
+    // gaussian core
+    result += TMath::Exp(-u*u/2);
+  }
+  else {
+    // right tail
+    result += A*TMath::Power(B+u,-n);
+  }
+  return result;
+}
+
 //__________________________________________________________________________
 Double_t InvMassFitter::FitFunction4Bkg (Double_t *x, Double_t *par){
   /// Fit function for the background
@@ -743,7 +845,7 @@ Double_t InvMassFitter::FitFunction4Bkg (Double_t *x, Double_t *par){
     }
     break;
   case 5:
-   //power function wit exponential
+    //  power function wit exponential
     //y=a*Sqrt(x-m_pi)*exp(-b*(x-m_pi))
     {
     Double_t mpi = TDatabasePDG::Instance()->GetParticle(211)->Mass();
@@ -816,6 +918,32 @@ Double_t InvMassFitter::FitFunction4Sgn (Double_t *x, Double_t *par){
     g2=par[3]/TMath::Sqrt(2.*TMath::Pi())/(par[4]*par[2])*TMath::Exp(-(x[0]-par[1])*(x[0]-par[1])/2./(par[4]*par[2])/(par[4]*par[2]));
     sigval=par[0]*(g1+g2);
     break;
+  case 3:
+    //Par:
+    // * [0] = Normalization
+    // * [1] = mean 
+    // * [2] = sigma
+    // * [3] = alpha1
+    // * [4] = n1
+    // * [5] = alpha2
+    // * [6] = n2
+    // cout << "Picking crystalball" << endl;
+    // sigval = ROOT::Math::crystalball_function(x[0], par[0], par[1], par[2], par[3]);
+
+    sigval = par[0]*DoubleSidedCBAsymm(x[0], par[1], par[2], par[3], par[4], par[5], par[6]);
+    // sigval = par[0]*ROOT::Math::crystalball_pdf(x[0], par[1], par[2], par[3], par[4]);
+  case 4:
+    //Par:
+    // * [0] = Normalization
+    // * [1] = mean 
+    // * [2] = sigma
+    // * [3] = alpha
+    // * [4] = n
+    // cout << "Picking crystalball" << endl;
+    // sigval = ROOT::Math::crystalball_function(x[0], par[0], par[1], par[2], par[3]);
+
+    sigval = par[0]*DoubleSidedCBSymm(x[0], par[1], par[2], par[3], par[4]);
+    // sigval = par[0]*ROOT::Math::crystalball_pdf(x[0], par[1], par[2], par[3], par[4]);
   }
   fRawYieldHelp=par[0]/fHistoInvMass->GetBinWidth(1);
   return sigval;

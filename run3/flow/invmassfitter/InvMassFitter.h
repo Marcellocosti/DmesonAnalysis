@@ -10,7 +10,7 @@ class InvMassFitter : public TNamed {
  public:
 
   enum ETypeOfBkg{ kExpo=0, kLin=1, kPol2=2, kNoBk=3, kPow=4, kPowEx=5, kPol3=6};
-  enum ETypeOfSgn{ kGaus=0, k2Gaus=1, k2GausSigmaRatioPar=2 };
+  enum ETypeOfSgn{ kGaus=0, k2Gaus=1, k2GausSigmaRatioPar=2, kDoubleCBAsymm=3, kDoubleCBSymm=4};
   enum TemplAnchorMode{Free=0, AnchorToFirst=1, AnchorToSgn=2};
 
   InvMassFitter();
@@ -48,6 +48,10 @@ class InvMassFitter : public TNamed {
   }
   void SetBkgPars(std::vector<Double_t> initpars) {
     fMassBkgInitPars = initpars;
+  }
+  void SetSgnPars(std::vector<Double_t> initpars) {
+    cout << "SetSgnPars" << endl;
+    fMassSigInitPars = initpars;
   }
   void SetInitialGaussianMean(Double_t mean) {fMass=mean;} 
   void SetInitialGaussianSigma(Double_t sigma) {fSigmaSgn=sigma;}
@@ -272,8 +276,8 @@ class InvMassFitter : public TNamed {
   std::vector<Double_t> fMassWeightsLowerLims; /// lower limit of the templates' weights
   std::vector<Double_t> fMassInitWeights;      /// init value of the templates' weights
   std::vector<Double_t> fMassBkgInitPars;      /// init values of the templates' weights
+  std::vector<Double_t> fMassSigInitPars;      /// init values of the templates' weights
 
-  
   /// \cond CLASSIMP     
   ClassDef(InvMassFitter,9); /// class for invariant mass fit
   /// \endcond

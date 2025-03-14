@@ -311,7 +311,7 @@ def run_full_cut_variation(config_flow,
 			else:
 				if combined:
 					print(f"\033[32mthe combined method will be performed\033[0m")
-					check_dir(f"{output_dir}_combined/V2VsFrac")
+					# check_dir(f"{output_dir}_combined/V2VsFrac")
 					# the path of corresponding results with correlated cut method
 					if config['minimisation'].get('correlatedPath'):
 						correlatedPath = config['minimisation']['correlatedPath']

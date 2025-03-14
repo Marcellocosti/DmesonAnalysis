@@ -342,9 +342,9 @@ if __name__ == "__main__":
             print(f'Projecting distributions for {ptMin:.1f} < pT < {ptMax:.1f} GeV/c')
             ptLowLabel = ptMin * 10
             ptHighLabel = ptMax * 10
-            ptcentdir = f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}'  
-            if create_new_file:    
-                print(f"creating new directory: {ptcentdir}")      
+            ptcentdir = f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}'
+            if create_new_file:
+                print(f"creating new directory: {ptcentdir}")
                 outfile.mkdir(ptcentdir)
             outfile.cd(ptcentdir)
 
@@ -356,7 +356,8 @@ if __name__ == "__main__":
                         sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"].GetAxis(axes['Flow']['score_FD']).SetRangeUser(cutVars['score_FD']['min'][iPt], cutVars['score_FD']['max'][iPt])
                         if 'score_bkg' in config['axestokeep']:
                             print(f"Cutting on bkg on pre-processed AnRes!")
-                            print(f"axes['Flow']['score_bkg']: {axes['Flow']['score_bkg']}")
+                            print(f"cutVars['score_bkg']['min'][iPt]: {cutVars['score_bkg']['min'][iPt]}")
+                            print(f"cutVars['score_bkg']['max'][iPt]: {cutVars['score_bkg']['max'][iPt]}")
                             sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"].GetAxis(axes['Flow']['score_bkg']).SetRangeUser(cutVars['score_bkg']['min'][iPt], cutVars['score_bkg']['max'][iPt])
                     proj_data(sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"], ptMin, ptMax, cent_min, cent_max, axes, config['inv_mass_bins'][iPt], reso, write_opt_data, args.systematics)
                     outfile.cd(ptcentdir)
