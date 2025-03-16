@@ -8,7 +8,7 @@ import fitz
 from utils.StyleFormatter import SetObjectStyle, SetGlobalStyle
 
 def merge_syst_info(syst_outdir):
-    pt_bins_directories = [d for d in os.listdir(syst_outdir) if os.path.isdir(os.path.join(syst_outdir, d))]
+    pt_bins_directories = [d for d in os.listdir(syst_outdir) if os.path.isdir(os.path.join(syst_outdir, d) and not d.startswith('config'))]
     print(f"pt_bins_directories: {pt_bins_directories}")
     pt_bins_directories = sorted(pt_bins_directories, key=lambda x: (int(x.split('_')[1]), int(x.split('_')[2])))
     print(f"pt_bins_directories: {pt_bins_directories}")
