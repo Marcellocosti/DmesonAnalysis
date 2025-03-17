@@ -510,34 +510,22 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                                                     fitConfig['FixVnTemplToSgn'][iPt])
                     print("Histo templates set!")
 
-            if fitConfig["SgnFunc"][iPt] == "kDoubleCBSymm" or fitConfig["SgnFunc"][iPt] == "kDoubleCBAsymm":
-                initParsSgn = []
-                print(f'fitConfig["PrefitMCPars"][iPt]: {fitConfig["PrefitMCPars"][iPt]}')
-                fileWithPars = TFile.Open(fitConfig["PrefitMCPars"][iPt], 'r')
-                print(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}/hSgnMCFuncPars')
-                histoPars = fileWithPars.Get(f'cent_bins{cent}/pt_bins{ptMin}_{ptMax}/hSgnMCFuncPars')
-                for iBin in range(histoPars.GetNbinsX()):
-                    ### First parameter of histogram is normalization
-                    initParsSgn.append(histoPars.GetBinContent(iBin+1))
-                    print(f"initParsSgn: {initParsSgn}")
-                    if iBin == 0:
-                        initParsSgn.append(0)
-                        initParsSgn.append(100000)
-                    else:
-                        initParsSgn.append(histoPars.GetBinContent(iBin+1) - (histoPars.GetBinError(iBin+1) * 3) )
-                        initParsSgn.append(-histoPars.GetBinContent(iBin+1) + (histoPars.GetBinError(iBin+1) * 3) )
-
             if fitConfig.get('InitFitPars') and fitConfig['InitFitPars'][iPt] != []:
                 vnFitter[iPt].SetInitPars(fitConfig['InitFitPars'][iPt])
-            # quit()
+
             # collect fit results
             vnFitter[iPt].SimultaneousFit(False)
             # quit()
+            print("CIAO1")
             # REVIEW: delete this vnComps = vnFitter[iPt].GetVnCompsFuncts()
             vnResults = get_vnfitter_results(vnFitter[iPt], secPeak, useRefl, useTemplates, fitConfig.get('DrawVnComps'))
+            print("CIAO2")
             hPulls.append(vnResults['pulls'])
+            print("CIAO3")
             fTotFuncMass.append(vnResults['fTotFuncMass'])
+            print("CIAO4")
             fTotFuncVn.append(vnResults['fTotFuncVn'])
+            print("CIAO5")
             fSgnFuncMass.append(vnResults['fSgnFuncMass'])
             fBkgFuncMass.append(vnResults['fBkgFuncMass'])
             fBkgFuncVn.append(vnResults['fBkgFuncVn'])
@@ -554,6 +542,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 fMassBkgRflFunc.append(vnResults['fMassBkgRflFunc'])
                 hRel.append(vnResults['fMassRflFunc'])
 
+            print("CIAO6")
             hSigmaSimFit.SetBinContent(iPt+1, vnResults['sigma'])
             hSigmaSimFit.SetBinError(iPt+1, vnResults['sigmaUnc'])
             hMeanSimFit.SetBinContent(iPt+1, vnResults['mean'])
@@ -575,6 +564,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
             gvnUnc.SetPoint(iPt, (ptMin+ptMax)/2, vnResults['vnUnc'])
             gvnUnc.SetPointError(iPt, (ptMax-ptMin)/2, (ptMax-ptMin)/2, 1.e-20, 1.e-20)
 
+            print("CIAO7")
             if secPeak:
                 hMeanSecPeakFitMass.SetBinContent(iPt+1, vnResults['secPeakMeanMass'])
                 hMeanSecPeakFitMass.SetBinError(iPt+1, vnResults['secPeakMeanMassUnc'])
@@ -590,6 +580,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                                                vnResults['vnSecPeakUnc'])
                 gvnUncSecPeak.SetPoint(iPt, (ptMin+ptMax)/2, vnResults['vnSecPeakUnc'])
                 gvnUncSecPeak.SetPointError(iPt, (ptMax-ptMin)/2, (ptMax-ptMin)/2, 1.e-20, 1.e-20)
+            print("CIAO8")
             if useTemplates:
                 for iTempl, (templVn, templVnUnc) in enumerate(zip(vnResults["vnTemplates"], vnResults["vnTemplatesUncs"])):
                     gvnTempls[iTempl].SetPoint(iPt, (ptMin+ptMax)/2, templVn)
@@ -597,6 +588,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                     gvnTemplsUncs[iTempl].SetPoint(iPt, (ptMin+ptMax)/2, templVnUnc)
                     gvnTemplsUncs[iTempl].SetPointError(iPt, (ptMax-ptMin)/2, (ptMax-ptMin)/2, 1.e-20, 1.e-20)
 
+            print("CIAO9")
             if vnResults['vn'] != 0:
                 cSimFit[iPt].cd(1)
                 hMassForFit[iPt].GetYaxis().SetRangeUser(0.2*hMassForFit[iPt].GetMinimum(),
@@ -689,13 +681,13 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 cSimFit[iCanv].Modified()
                 cSimFit[iCanv].Update()
 
+            print("CIAO10")
             invMassPrefit = vnFitter[iPt].GetMassPrefitObject()
             hPullsPrefit.append(invMassPrefit.GetPullDistribution())
             histoMassPrefit = invMassPrefit.GetHistoClone()
             totFuncMassPrefit = invMassPrefit.GetMassFunc()
             bkgFuncMassPrefit = invMassPrefit.GetBackgroundRecalcFunc()
             sgnFuncMassPrefit = invMassPrefit.GetSignalFunc()
-            templFuncMassPrefit = invMassPrefit.GetTemplFunc()
             cInvMassPrefits[iPt] = TCanvas(f"cMass_{ptMin*10:.0f}_{ptMax*10:.0f}", f"Mass Fit {ptMin}-{ptMax} GeV/c", 800, 600)
             histoMassPrefit.SetStats(0)
             histoMassPrefit.Draw("E")
@@ -707,14 +699,20 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
             sgnFuncMassPrefit.SetLineWidth(2)
             sgnFuncMassPrefit.SetLineWidth(3)
             sgnFuncMassPrefit.Draw("same")
-            templFuncMassPrefit.SetLineColor(kMagenta)
-            templFuncMassPrefit.SetLineWidth(2)
-            templFuncMassPrefit.SetLineWidth(3)
-            templFuncMassPrefit.Draw("same")
+            
+            # # ONLY USE WITH 'histo' MODE, ELSE IT CRASHES (TO BE UNDERSTOOD)
+            # templFuncMassPrefit = invMassPrefit.GetTemplFunc()
+            # print(f"invMassPrefit.GetTemplOverSig(): {invMassPrefit.GetTemplOverSig()}")
+            # templFuncMassPrefit.SetLineColor(kMagenta)
+            # templFuncMassPrefit.SetLineWidth(2)
+            # templFuncMassPrefit.SetLineWidth(3)
+            # templFuncMassPrefit.Draw("same")
+
             totFuncMassPrefit.SetLineColor(kRed)
             totFuncMassPrefit.SetLineWidth(2)
             totFuncMassPrefit.SetLineWidth(3)
             totFuncMassPrefit.Draw("same")
+            print("CIAO11")
     #_____________________________________________________
     # Mass fit
     else:

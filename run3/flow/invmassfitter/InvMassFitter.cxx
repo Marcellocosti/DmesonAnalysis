@@ -548,6 +548,7 @@ TF1* InvMassFitter::CreateTemplatesFunction(TString fname){
   if(fNParsTempls == 1 && fTemplatesFuncts.size()>1) {
     functempl->SetParName(0, "w_templates_anchored");
     if(this->fMassWeightsLowerLims[0] >= this->fMassWeightsUpperLims[0]) {
+        cout << "Fixing template parameter" << endl;
       functempl->FixParameter(0,this->fMassInitWeights[0]);
     } else {
       functempl->SetParameter(0,this->fMassInitWeights[0]);
@@ -558,8 +559,11 @@ TF1* InvMassFitter::CreateTemplatesFunction(TString fname){
     for(int iPar=0; iPar<functempl->GetNpar(); iPar++) {
       functempl->SetParName(iPar, Form("w_%s",this->fTemplatesFuncts[iPar].GetName()));
       if(this->fMassWeightsLowerLims[iPar] >= this->fMassWeightsUpperLims[iPar]) {
+        cout << "Fixing template parameter" << endl;
         functempl->FixParameter(iPar,this->fMassInitWeights[iPar]);
       } else {
+        cout << "Setting template parameter to " << this->fMassInitWeights[iPar];
+        cout << " with limits " << this->fMassWeightsLowerLims[iPar] << "-" << this->fMassWeightsUpperLims[iPar] << endl;
         functempl->SetParameter(iPar,this->fMassInitWeights[iPar]);
         functempl->SetParLimits(iPar,this->fMassWeightsLowerLims[iPar],this->fMassWeightsUpperLims[iPar]);
       }
@@ -708,8 +712,6 @@ TF1* InvMassFitter::CreateTotalFitFunction(TString fname){
       ftot->SetParLimits(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,parmin,parmax);
       ftot->SetParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,fTemplFunc->GetParameter(ipar));
       ftot->SetParName(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,fTemplFunc->GetParName(ipar));
-      ftot->FixParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,fTemplFunc->GetParameter(ipar));
-      // ftot->FixParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,0.);
     }
   }
 
@@ -726,11 +728,11 @@ Double_t InvMassFitter::DoubleSidedCBAsymm(double x, double mu, double width, do
   double B2  = n2/TMath::Abs(a2) - TMath::Abs(a2);
 
   double result(0);
-  if      (u<-a1) {
+  if      (u<=-a1) {
     // left tail
     result += A1*TMath::Power(B1-u,-n1);
   }
-  else if (u>-a1 && u<a2) { 
+  else if (u>-a1 && u<=a2) { 
     // gaussian core
     result += TMath::Exp(-u*u/2);
   }

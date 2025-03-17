@@ -321,8 +321,6 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
   ROOT::Fit::Fitter fitter;
   // create before the parameter settings in order to fix or set range on them
   fitter.Config().SetParamsSettings(nparsvn,initpars.data()); //set initial parameters from prefits
-  // When sgn func is Double CrystalBall, the sgnInt parameter is fixed to the one obtained from the mass prefit
-  if (fMassSgnFuncType==kDoubleCBSymm || fMassSgnFuncType==kDoubleCBAsymm) {fitter.Config().ParSettings(fNParsMassBkg).Fix();}
   if(fMeanFixed==2 || fMeanFixedFromMassFit) {fitter.Config().ParSettings(fNParsMassBkg+1).Fix();}
   fitter.Config().ParSettings(fNParsMassBkg+2).SetLimits(0,1);
   if(fSigmaFixed==2 || fSigmaFixedFromMassFit) {fitter.Config().ParSettings(fNParsMassBkg+2).Fix();}
@@ -376,6 +374,14 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
         fitter.Config().ParSettings(parIdx).SetLimits(std::get<2>(fInitFuncPars[iInitPar]), std::get<3>(fInitFuncPars[iInitPar]));
       }
     }
+  }
+
+  // When sgn func is Double CrystalBall, the sgnInt, alpha and N parameters are fixed 
+  // to the ones obtained from the mass prefit (alpha and N fixed to the MC from the config)
+  if (fMassSgnFuncType==kDoubleCBSymm) {
+    fitter.Config().ParSettings(fNParsMassBkg).Fix();
+    fitter.Config().ParSettings(fNParsMassBkg+3).Fix();   // alpha
+    fitter.Config().ParSettings(fNParsMassBkg+4).Fix();   // N
   }
 
   fitter.Config().MinimizerOptions().SetPrintLevel(0);
