@@ -536,6 +536,7 @@ def get_vnfitter_results(vnFitter, secPeak, useRefl, useTempl, DrawVnComps):
     vn_results['fBkgFuncMass'] = vnFitter.GetMassBkgFitFunc()
     vn_results['fBkgFuncVn'] = vnFitter.GetVnVsMassBkgFitFunc()
     vn_results['fSgnFuncMass'] = vnFitter.GetMassSignalFitFunc()
+    vn_results['pulls'] = vnFitter.GetPullDistribution()
     
     if secPeak:
         vn_results['fVnCompsFuncts']['vnSecPeak'] = vnComps[2]

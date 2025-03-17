@@ -46,13 +46,6 @@ class InvMassFitter : public TNamed {
     fPolDegreeBkg=deg;
     SetNumberOfParams();
   }
-  void SetBkgPars(std::vector<Double_t> initpars) {
-    fMassBkgInitPars = initpars;
-  }
-  void SetSgnPars(std::vector<Double_t> initpars) {
-    cout << "SetSgnPars" << endl;
-    fMassSigInitPars = initpars;
-  }
   void SetInitialGaussianMean(Double_t mean) {fMass=mean;} 
   void SetInitialGaussianSigma(Double_t sigma) {fSigmaSgn=sigma;}
   void SetInitialSecondGaussianSigma(Double_t sigma) {fSigmaSgn2Gaus=sigma;}
@@ -119,7 +112,10 @@ class InvMassFitter : public TNamed {
     fRelWeights=relcombweights;
     fAnchorTemplsMode=static_cast<TemplAnchorMode>(anchormode);
   }
-
+  void SetInitPars(std::vector<std::tuple<TString, double, double, double>>  initFuncPars) {
+    cout << "SetInitPars VnVsMassfitter" << endl;
+    fInitFuncPars = initFuncPars;
+  }
   void IncludeSecondGausPeak(Double_t mass, Bool_t fixm, Double_t width, Bool_t fixw){
     fSecondPeak=kTRUE; fSecMass=mass; fSecWidth=width;
     fFixSecMass=fixm;  fFixSecWidth=fixw;
@@ -134,6 +130,10 @@ class InvMassFitter : public TNamed {
   Double_t GetMeanUncertainty() const {return fMassErr;}
   Double_t GetSigma()const {return fSigmaSgn;}
   Double_t GetSigmaUncertainty()const { return fSigmaSgnErr;}
+  Double_t GetTemplOverSig()const{
+    if(fTemplates) return fTemplFunc->Integral(this->fMinMass,this->fMaxMass)/fSigFunc->Integral(this->fMinMass,this->fMaxMass);
+    else return 0;
+  }
   Double_t GetReflOverSig()const{
     if(fRflFunc) return fRflFunc->GetParameter(0);
     else return 0;
@@ -142,6 +142,7 @@ class InvMassFitter : public TNamed {
     if(fRflFunc) return fRflFunc->GetParError(0);
     else return 0;
   }
+  TH1D* GetPullDistribution();
   TF1*     GetBackgroundFullRangeFunc(){return fBkgFunc;}
   TF1*     GetBackgroundRecalcFunc(){return fBkgFuncRefit;}
   TF1*     GetBkgPlusReflFunc(){return fBkRFunc;}
@@ -149,6 +150,7 @@ class InvMassFitter : public TNamed {
   TF1*     GetMassFunc(){return fTotFunc;}
   TF1*     GetSecondPeakFunc(){return fSecFunc;}
   TF1*     GetReflFunc(){return fRflFunc;}
+  TF1*     GetTemplFunc(){return fTemplFunc;}
   Double_t GetChiSquare() const{
     if(fTotFunc) return fTotFunc->GetChisquare();
     else return -1;
@@ -165,6 +167,8 @@ class InvMassFitter : public TNamed {
     TH1F* hout=(TH1F*)fHistoInvMass->Clone(Form("%scloned",fHistoInvMass->GetName()));
     return hout;
   }
+  Double_t DoubleSidedCBAsymm(double x, double mu, double width, double a1, double n1, double a2, double n2);
+  Double_t DoubleSidedCBSymm(double x, double mu, double width, double a, double n);
   Double_t GetRawYieldBinCounting(Double_t& errRyBC, Double_t nSigma=3., Int_t option=0, Int_t pdgCode=0) const;
   Double_t GetRawYieldBinCounting(Double_t& errRyBC, Double_t minMass, Double_t maxMass, Int_t option=0) const;
   Int_t    MassFitter(Bool_t draw=kTRUE);
@@ -275,8 +279,8 @@ class InvMassFitter : public TNamed {
   std::vector<Double_t> fMassWeightsUpperLims; /// upper limit of the templates' weights
   std::vector<Double_t> fMassWeightsLowerLims; /// lower limit of the templates' weights
   std::vector<Double_t> fMassInitWeights;      /// init value of the templates' weights
-  std::vector<Double_t> fMassBkgInitPars;      /// init values of the templates' weights
-  std::vector<Double_t> fMassSigInitPars;      /// init values of the templates' weights
+  std::vector<std::tuple<TString, double, double, double>> fInitFuncPars;   /// Init pars for fit function
+  
 
   /// \cond CLASSIMP     
   ClassDef(InvMassFitter,9); /// class for invariant mass fit

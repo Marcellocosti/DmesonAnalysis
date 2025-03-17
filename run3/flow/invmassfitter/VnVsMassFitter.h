@@ -94,9 +94,6 @@ public:
                             std::vector<Double_t> vninitweights, std::vector<Double_t> vnminweights, std::vector<Double_t> vnmaxweights, 
                             Bool_t samevnofsignal) {
     histotempl.Scale(1 / histotempl.Integral(),"width");
-    TFile *checkfile = new TFile("file_histo.root", "recreate");
-    histotempl.Write();
-    checkfile->Close(); 
     TSpline3 *templSpline = new TSpline3(&histotempl);
     TF1 templsPdf("TemplsPdf",
                   [&, this, templSpline, histotempl](double *x, double *par) {
@@ -125,13 +122,6 @@ public:
     fRelWeights=relcombweights;
     fAnchorTemplsMode=static_cast<TemplAnchorMode>(anchormode);
   }
-  void SetBkgPars(std::vector<Double_t> initpars) {
-    fMassBkgInitPars = initpars;
-  }
-  void SetSgnPars(std::vector<Double_t> initpars) {
-    cout << "SetSgnPars" << endl;
-    fMassSgnInitPars = initpars;
-  }
   void SetInitialReflOverS(Double_t rovers){fRflOverSig=rovers;}
   void SetFixReflOverS(Double_t rovers){
     SetInitialReflOverS(rovers);
@@ -149,7 +139,18 @@ public:
     fDoSecondPeakVn=doVn;
     fFixVnSecPeakToSgn=fixtosgn;
   }
+  void SetInitPars(std::vector<std::tuple<TString, double, double, double>>  initFuncPars) {
+    cout << "SetInitPars VnVsMassfitter" << endl;
+    fInitFuncPars = initFuncPars;
+  }
+  void ApplyInitPars();
   void SetHarmonic(Int_t harmonic=2) {fHarmonic=harmonic;}
+
+  // Double-sided crystal ball functions
+  Double_t DoubleSidedCBAsymmForVn(double x, double mu, double width, double a1, double n1, double a2, double n2);
+  Double_t DoubleSidedCBSymmForVn(double x, double mu, double width, double a, double n);
+
+  TH1D *GetPullDistribution();
 
   //getters
   Double_t GetVn() const {return fVn;}
@@ -168,6 +169,7 @@ public:
   Int_t GetSBVnPrefitNDF() const {return fSBVnPrefitNDF;}
   Double_t GetSBVnPrefitReducedChiSquare() const {return fSBVnPrefitChiSquare/fSBVnPrefitNDF;}
   Double_t GetSBVnPrefitProbability() const {return fSBVnPrefitProb;}
+  InvMassFitter* GetMassPrefitObject() const {return fMassFitter;}
   Double_t GetMassPrefitChiSquare() const {return fMassPrefitChiSquare;}
   Int_t GetMassPrefitNDF() const {return fMassPrefitNDF;}
   Double_t GetMassPrefitReducedChiSquare() const {return fMassPrefitChiSquare/fMassPrefitNDF;}
@@ -374,8 +376,6 @@ private:
   Int_t                 fMeanFixed;                     /// flag to fix peak position
   Int_t                 fSigma2GausFixed;               /// flag to fix second peak width in case of k2Gaus
   Int_t                 fFrac2GausFixed;                /// flag to fix fraction of second gaussian in case of k2Gaus
-  std::vector<Double_t> fMassBkgInitPars;               /// init values of the templates' weights
-  std::vector<Double_t> fMassSgnInitPars;               /// init values of the templates' weights
   Int_t                 fPolDegreeBkg;                  /// degree of polynomial expansion for back fit (option 6 for back)
   Int_t                 fPolDegreeVnBkg;                /// degree of polynomial expansion for vn back fit (option 6 for back)
   Bool_t                fReflections;                   /// flag use/not use reflections
@@ -422,6 +422,7 @@ private:
   std::vector<Double_t> fVnInitWeights;                 /// init values of the templates' weights
   Bool_t                fTemplSameVnOfSignal;           /// init values of the templates' weights
   TemplAnchorMode       fAnchorTemplsMode;              /// init values of the templates' weights
+  std::vector<std::tuple<TString, double, double, double>> fInitFuncPars;  /// init values of total fit function
 
     /// \cond CLASSDEF
   ClassDef(VnVsMassFitter,5);

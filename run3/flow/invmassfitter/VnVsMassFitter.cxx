@@ -230,6 +230,29 @@ VnVsMassFitter::~VnVsMassFitter() {
 }
 
 //________________________________________________________________
+TH1D* VnVsMassFitter::GetPullDistribution() {
+  if(!fMassTotFunc) {
+      throw std::invalid_argument("Fit not performed, pulls cannot be calculated!");
+  }
+
+  std::vector<double> pulls;
+  for(int iBin=0; iBin<this->fMassHisto->GetNbinsX(); iBin++) {    
+      if(this->fMassHisto->GetBinCenter(iBin+1) >= this->fMassMin &&
+         this->fMassHisto->GetBinCenter(iBin+1) <= this->fMassMax) {
+              pulls.push_back( (this->fMassHisto->GetBinContent(iBin+1) - this->GetMassTotFitFunc()->Eval(this->fMassHisto->GetBinCenter(iBin+1))) /         
+                                this->fMassHisto->GetBinError(iBin+1));
+      }
+  }
+
+  TH1D *histoPulls = new TH1D("hPulls", "hPulls;M (GeV/c); Data - fit", pulls.size(), this->fMassMin, this->fMassMax);
+  for(int iBin=0; iBin<this->fMassHisto->GetNbinsX(); iBin++) {    
+      histoPulls->SetBinContent(iBin+1, pulls[iBin]);         
+  }
+
+  return histoPulls;
+}
+
+//________________________________________________________________
 Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
 
   if(!fMassHisto || !fVnVsMassHisto) {printf("Histograms not set! Exit."); return kFALSE;}
@@ -298,16 +321,8 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
   ROOT::Fit::Fitter fitter;
   // create before the parameter settings in order to fix or set range on them
   fitter.Config().SetParamsSettings(nparsvn,initpars.data()); //set initial parameters from prefits
-  if (fMassBkgInitPars.size()>0) {
-    for (int iBkgPar=0; iBkgPar<fNParsMassBkg; iBkgPar++) {
-      fitter.Config().ParSettings(iBkgPar).SetValue(this->fMassBkgInitPars[iBkgPar*3]);
-      if(this->fMassBkgInitPars[iBkgPar*3+1] > this->fMassBkgInitPars[iBkgPar*3+2]) {
-        fitter.Config().ParSettings(iBkgPar).Fix();
-      } else {
-        fitter.Config().ParSettings(iBkgPar).SetLimits(this->fMassBkgInitPars[iBkgPar*3+1], this->fMassBkgInitPars[iBkgPar*3+2]);
-      }
-    }
-  }
+  // When sgn func is Double CrystalBall, the sgnInt parameter is fixed to the one obtained from the mass prefit
+  if (fMassSgnFuncType==kDoubleCBSymm || fMassSgnFuncType==kDoubleCBAsymm) {fitter.Config().ParSettings(fNParsMassBkg).Fix();}
   if(fMeanFixed==2 || fMeanFixedFromMassFit) {fitter.Config().ParSettings(fNParsMassBkg+1).Fix();}
   fitter.Config().ParSettings(fNParsMassBkg+2).SetLimits(0,1);
   if(fSigmaFixed==2 || fSigmaFixedFromMassFit) {fitter.Config().ParSettings(fNParsMassBkg+2).Fix();}
@@ -315,14 +330,6 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
     if(fFrac2GausFixed==2 || fFrac2GausFixedFromMassFit) {fitter.Config().ParSettings(fNParsMassBkg+3).Fix();}
     if(fSigma2GausFixed==2 || fSigma2GausFixedFromMassFit) {fitter.Config().ParSettings(fNParsMassBkg+4).Fix();}
   }
-  // if(fMassSgnFuncType==kDoubleCBAsymm || fMassSgnFuncType==kDoubleCBSymm) {
-  //   // Leave only the sigma free
-  //   for (int iSgnPar=0; iSgnPar<fNParsMassSgn; iSgnPar++) {
-  //     if (iSgnPar != 1) {
-  //       fitter.Config().ParSettings(fNParsMassBkg+iSgnPar+1).Fix();
-  //     }
-  //   }
-  // }
   if(fSecondPeak) {
     if(fFixSecMass) {fitter.Config().ParSettings(fNParsMassBkg+fNParsMassSgn+1).Fix();}
     if(fFixSecWidth) {fitter.Config().ParSettings(fNParsMassBkg+fNParsMassSgn+2).Fix();}
@@ -350,29 +357,30 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
     }
   }
 
-  // for(int iPar=0; iPar<nparsvn; iPar++) {
-  //   fitter.Config().ParSettings(iPar).Fix();
-  // }
+  if(fInitFuncPars.size()>0) {
+    for (int iInitPar=0; iInitPar<fInitFuncPars.size(); iInitPar++) {
+      int parIdx = fVnTotFunc->GetParNumber(std::get<0>(fInitFuncPars[iInitPar]).Data());
+      if (parIdx < fNParsMassBkg+fNParsMassSgn+fNParsSec+fNParsRfl+fNParsTempls) {
+        // The parameter init value was set in the mass prefit, now the 
+        // value determined in the mass prefit will be used as init value 
+        continue;
+      }
+      fitter.Config().ParSettings(parIdx).SetValue(std::get<1>(fInitFuncPars[iInitPar]));
+      if (std::get<2>(fInitFuncPars[iInitPar]) >= std::get<3>(fInitFuncPars[iInitPar])) {
+        cout << "[VnVsMassFitter] Fixing parameter " << std::get<0>(fInitFuncPars[iInitPar]) << " at index " << parIdx << " to " << std::get<1>(fInitFuncPars[iInitPar]);
+        cout << " with limits " << std::get<2>(fInitFuncPars[iInitPar]) << " and " << std::get<3>(fInitFuncPars[iInitPar]) << endl;
+        fitter.Config().ParSettings(parIdx).Fix();
+      } else {
+        cout << "[VnVsMassFitter] Setting parameter " << std::get<0>(fInitFuncPars[iInitPar]) << " at index " << parIdx << " to " << std::get<1>(fInitFuncPars[iInitPar]);
+        cout << " with limits " << std::get<2>(fInitFuncPars[iInitPar]) << " and " << std::get<3>(fInitFuncPars[iInitPar]) << endl;
+        fitter.Config().ParSettings(parIdx).SetLimits(std::get<2>(fInitFuncPars[iInitPar]), std::get<3>(fInitFuncPars[iInitPar]));
+      }
+    }
+  }
 
   fitter.Config().MinimizerOptions().SetPrintLevel(0);
   fitter.Config().SetMinimizer("Minuit2","Migrad");
   for(Int_t iPar=0; iPar<nparsvn; iPar++) {fitter.Config().ParSettings(iPar).SetName(fVnTotFunc->GetParName(iPar));}
-  if (fMassSgnInitPars.size()>0 && (fMassSgnFuncType==kDoubleCBAsymm || fMassSgnFuncType==kDoubleCBSymm)) {
-    int skipPars = 3;
-    for (int iSgnPar=0; iSgnPar<fNParsMassSgn-skipPars; iSgnPar++) {
-      // +1 because the first parameter is the normalization to 
-      //  the Signal integral and we do not want to fix it
-      cout << "Setting parameter " << iSgnPar+fNParsMassBkg+skipPars << " to: " << this->fMassSgnInitPars[skipPars*3+iSgnPar*3] << endl;
-      fitter.Config().ParSettings(iSgnPar+fNParsMassBkg+skipPars).SetValue(this->fMassSgnInitPars[skipPars*3+iSgnPar*3]);
-      if(this->fMassSgnInitPars[skipPars*3+iSgnPar*3+1] > this->fMassSgnInitPars[skipPars*3+iSgnPar*3+2]) {
-        cout << "Fixing!" << endl;
-        fitter.Config().ParSettings(iSgnPar+fNParsMassBkg+skipPars).Fix();
-      } else {
-        cout << "Not fixing!" << endl;
-        fitter.Config().ParSettings(iSgnPar+fNParsMassBkg+skipPars).SetLimits(this->fMassSgnInitPars[skipPars*3+iSgnPar*3+1], this->fMassSgnInitPars[skipPars*3+iSgnPar*3+2]);
-      }
-    }
-  }
 
   // fit FCN function directly
   // (specify optionally data size and flag to indicate that is a chi2 fit
@@ -507,12 +515,12 @@ Bool_t VnVsMassFitter::SimultaneousFit(Bool_t drawFit) {
 //______________________________________________________________________________
 void VnVsMassFitter::DrawHere(TVirtualPad* c){
   /// Core method to draw the fit output
-
+  
   gStyle->SetOptStat(0);
   gStyle->SetCanvasColor(0);
   gStyle->SetFrameFillColor(0);
   c->Divide(1,2);
-
+  
   c->cd(1);
   fMassHisto->SetTitle("");
   fMassHisto->SetMarkerStyle(20);
@@ -562,7 +570,7 @@ void VnVsMassFitter::DrawHere(TVirtualPad* c){
       fKDEMassTemplatesDraw[iMassTempl]->Draw("same");
     }
   }
-
+  
   TPaveText* massinfo = new TPaveText(0.45,0.7,1.,0.87,"NDC");
   massinfo->SetTextFont(42);
   massinfo->SetTextSize(0.05);
@@ -575,7 +583,7 @@ void VnVsMassFitter::DrawHere(TVirtualPad* c){
     massinfo->AddText(Form("sigma2 = %.3f #pm %.3f",fVnTotFunc->GetParameter(fNParsMassBkg+3),fVnTotFunc->GetParError(fNParsMassBkg+3)));
   }
   massinfo->Draw("same");
-
+  
   c->cd(2);
   fVnVsMassHisto->SetTitle("");
   fVnVsMassHisto->SetMarkerStyle(20);
@@ -608,7 +616,7 @@ void VnVsMassFitter::DrawHere(TVirtualPad* c){
       fVnCompsDraw[iVnTempl]->Draw("same");
     }
   }
-
+  
   TPaveText* vninfo = new TPaveText(-0.45,0.7,1.,0.87,"NDC");
   vninfo->SetTextFont(42);
   vninfo->SetTextSize(0.05);
@@ -621,10 +629,9 @@ void VnVsMassFitter::DrawHere(TVirtualPad* c){
   if(fSecondPeak && fDoSecondPeakVn) {vninfo->AddText(Form("#it{v}_{%d}^{sec peak} = %.3f #pm %.3f",fHarmonic,fVnTotFunc->GetParameter(fVnTotFunc->GetNpar()-1),fVnTotFunc->GetParError(fVnTotFunc->GetNpar()-1)));}
   vninfo->AddText(Form("#chi^{2}/#it{ndf} = %.2f/%d",fChiSquare,fNDF));
   vninfo->Draw("same");
-
+  
   c->Update();
 }
-
 //________________________________________________________________
 Bool_t VnVsMassFitter::MassPrefit() {
 
@@ -636,12 +643,6 @@ Bool_t VnVsMassFitter::MassPrefit() {
   
   fMassFitter = new InvMassFitter(fMassHisto,fMassMin,fMassMax,fMassBkgFuncType,fMassSgnFuncType);
   fMassFitter->SetNSigma4SideBands(fNSigmaForSB);
-  if (fMassSgnFuncType == kDoubleCBAsymm || fMassSgnFuncType == kDoubleCBSymm) {
-    fMassFitter->SetSgnPars(fMassSgnInitPars);
-  }
-  if (fMassBkgInitPars.size()>0) {
-    fMassFitter->SetBkgPars(fMassBkgInitPars);
-  }
   if(fSigmaFixed==1) fMassFitter->SetInitialGaussianSigma(fSigmaInit);
   else if(fSigmaFixed==2) fMassFitter->SetFixGaussianSigma(fSigmaInit);
   if(fMeanFixed==1) fMassFitter->SetInitialGaussianMean(fMeanInit);
@@ -660,7 +661,13 @@ Bool_t VnVsMassFitter::MassPrefit() {
     if(fRflOverSig>0) {fMassFitter->SetInitialReflOverS(fRflOverSig);}
     if(fFixRflOverSig) {fMassFitter->SetFixReflOverS(fRflOverSig);}
   }
-  // if(fTemplates) {fMassFitter->SetTemplates(fKDETemplates, fMassInitWeights, fMassWeightsLowerLims, fMassWeightsUpperLims, static_cast<int>(fAnchorTemplsMode), fRelWeights);}
+  if(fTemplates) {
+    fMassFitter->SetTemplates(fKDETemplates, fMassInitWeights, fMassWeightsLowerLims, 
+                              fMassWeightsUpperLims, static_cast<int>(fAnchorTemplsMode), fRelWeights);
+  }
+  if (fInitFuncPars.size() > 0) {
+    fMassFitter->SetInitPars(fInitFuncPars);
+  }
   Bool_t status = fMassFitter->MassFitter(kFALSE);
 
   if(status) {
@@ -1044,7 +1051,7 @@ void VnVsMassFitter::Significance(Double_t min, Double_t max, Double_t &signific
 }
 
 //__________________________________________________________________________
-Double_t DoubleSidedCBAsymmForVn(double x, double mu, double width, double a1, double n1, double a2, double n2)
+Double_t VnVsMassFitter::DoubleSidedCBAsymmForVn(double x, double mu, double width, double a1, double n1, double a2, double n2)
 {
   // cout << "n2: " << n2 << ", a2: " << a2 << endl;
   double u   = (x-mu)/width;
@@ -1071,7 +1078,7 @@ Double_t DoubleSidedCBAsymmForVn(double x, double mu, double width, double a1, d
 }
 
 //__________________________________________________________________________
-Double_t DoubleSidedCBSymmForVn(double x, double mu, double width, double a, double n)
+Double_t VnVsMassFitter::DoubleSidedCBSymmForVn(double x, double mu, double width, double a, double n)
 {
   double u  = (x-mu)/width;
   double A  = TMath::Power(n/TMath::Abs(a),n)*TMath::Exp(-a*a/2);

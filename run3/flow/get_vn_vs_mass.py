@@ -15,7 +15,7 @@ import itertools
 import re
 import uproot
 from ROOT import TLatex, TFile, TCanvas, TLegend, TH1D, TH1F, TDatabasePDG, TGraphAsymmErrors, TKDE # pylint: disable=import-error,no-name-in-module
-from ROOT import gROOT, gPad, gInterpreter, kBlack, kRed, kAzure, kCyan, kGray, kOrange, kGreen, kMagenta, kFullCircle, kFullSquare, kOpenCircle # pylint: disable=import-error,no-name-in-module
+from ROOT import gROOT, gPad, gInterpreter, kBlack, kRed, kAzure, kCyan, kBlue, kGray, kOrange, kGreen, kMagenta, kFullCircle, kFullSquare, kOpenCircle # pylint: disable=import-error,no-name-in-module
 from flow_analysis_utils import get_centrality_bins, get_vnfitter_results, get_ep_vn, get_refl_histo, get_particle_info # pylint: disable=import-error,no-name-in-module
 sys.path.append('../../..')
 sys.path.append('../..')
@@ -193,7 +193,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
         print(f'ERROR: file "{inFileName}" cannot be opened! Exit!')
         sys.exit()
     hRel, hSig, hMassForRel, hMassForSig  = [], [], [], []
-    hMass, hMassForFit, hVn, hVnForFit = [], [], [], []
+    hMass, hMassForFit, hVn, hVnForFit, hPulls, hPullsPrefit = [], [], [], [], [], []
     hMassIns, hMassOuts, hMassInsForFit, hMassOutsForFit = [], [], [], []
     fTotFuncMass, fTotFuncVn, fSgnFuncMass, fBkgFuncMass, fMassBkgRflFunc, fMassSecPeakFunc, fBkgFuncVn, fVnSecPeakFunc, fVnCompFuncts = [], [], [], [], [], [], [], [], []
     hMCSgn, hMCRefl = [], []
@@ -369,10 +369,12 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
 
     if vn_method == 'sp' or vn_method == 'ep':
         cSimFit = []
+        cInvMassPrefits = []
         for i in range(nPtBins):
             ptLow = ptMins[i]
             ptHigh = ptMaxs[i]
             cSimFit.append(TCanvas(f'cSimFit_Pt{ptLow}_{ptHigh}', f'cSimFit_Pt{ptLow}_{ptHigh}', 400, 900))
+            cInvMassPrefits.append(TCanvas(f'cMassPrefit_Pt{ptLow}_{ptHigh}', f'cMassPrefit_Pt{ptLow}_{ptHigh}', 400, 900))
             cSimFit[-1].Divide(1, 2)
     else:
         cMass, cResiduals = [], []
@@ -507,9 +509,6 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                                                     fitConfig['VnMaxWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else [], 
                                                     fitConfig['FixVnTemplToSgn'][iPt])
                     print("Histo templates set!")
-            if fitConfig.get('InitBkg'):
-                if fitConfig['InitBkg'][iPt] != []:
-                    vnFitter[iPt].SetBkgPars(list(itertools.chain(*fitConfig['InitBkg'][iPt])))
 
             if fitConfig["SgnFunc"][iPt] == "kDoubleCBSymm" or fitConfig["SgnFunc"][iPt] == "kDoubleCBAsymm":
                 initParsSgn = []
@@ -527,15 +526,16 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                     else:
                         initParsSgn.append(histoPars.GetBinContent(iBin+1) - (histoPars.GetBinError(iBin+1) * 3) )
                         initParsSgn.append(-histoPars.GetBinContent(iBin+1) + (histoPars.GetBinError(iBin+1) * 3) )
-                    
-                vnFitter[iPt].SetSgnPars(initParsSgn)
-                
+
+            if fitConfig.get('InitFitPars') and fitConfig['InitFitPars'][iPt] != []:
+                vnFitter[iPt].SetInitPars(fitConfig['InitFitPars'][iPt])
             # quit()
             # collect fit results
             vnFitter[iPt].SimultaneousFit(False)
             # quit()
             # REVIEW: delete this vnComps = vnFitter[iPt].GetVnCompsFuncts()
             vnResults = get_vnfitter_results(vnFitter[iPt], secPeak, useRefl, useTemplates, fitConfig.get('DrawVnComps'))
+            hPulls.append(vnResults['pulls'])
             fTotFuncMass.append(vnResults['fTotFuncMass'])
             fTotFuncVn.append(vnResults['fTotFuncVn'])
             fSgnFuncMass.append(vnResults['fSgnFuncMass'])
@@ -689,6 +689,32 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 cSimFit[iCanv].Modified()
                 cSimFit[iCanv].Update()
 
+            invMassPrefit = vnFitter[iPt].GetMassPrefitObject()
+            hPullsPrefit.append(invMassPrefit.GetPullDistribution())
+            histoMassPrefit = invMassPrefit.GetHistoClone()
+            totFuncMassPrefit = invMassPrefit.GetMassFunc()
+            bkgFuncMassPrefit = invMassPrefit.GetBackgroundRecalcFunc()
+            sgnFuncMassPrefit = invMassPrefit.GetSignalFunc()
+            templFuncMassPrefit = invMassPrefit.GetTemplFunc()
+            cInvMassPrefits[iPt] = TCanvas(f"cMass_{ptMin*10:.0f}_{ptMax*10:.0f}", f"Mass Fit {ptMin}-{ptMax} GeV/c", 800, 600)
+            histoMassPrefit.SetStats(0)
+            histoMassPrefit.Draw("E")
+            bkgFuncMassPrefit.SetLineColor(kGreen+2)
+            bkgFuncMassPrefit.SetLineWidth(2)
+            bkgFuncMassPrefit.SetLineWidth(3)
+            bkgFuncMassPrefit.Draw("same")
+            sgnFuncMassPrefit.SetLineColor(kBlue)
+            sgnFuncMassPrefit.SetLineWidth(2)
+            sgnFuncMassPrefit.SetLineWidth(3)
+            sgnFuncMassPrefit.Draw("same")
+            templFuncMassPrefit.SetLineColor(kMagenta)
+            templFuncMassPrefit.SetLineWidth(2)
+            templFuncMassPrefit.SetLineWidth(3)
+            templFuncMassPrefit.Draw("same")
+            totFuncMassPrefit.SetLineColor(kRed)
+            totFuncMassPrefit.SetLineWidth(2)
+            totFuncMassPrefit.SetLineWidth(3)
+            totFuncMassPrefit.Draw("same")
     #_____________________________________________________
     # Mass fit
     else:
@@ -937,8 +963,14 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
     if vn_method == 'sp' or vn_method == 'ep':
         for canv in cSimFit:
             canv.Write()
+        for canvPrefit in cInvMassPrefits:
+            canvPrefit.Write()
         for hist in hMass:
             hist.Write('hist_mass')
+        for hist in hPulls:
+            hist.Write('hist_pulls')
+        for hist in hPullsPrefit:
+            hist.Write('hist_pulls_prefit')
         for hist in hVn:
             hist.Write('hist_vn')
         for ipt, (ptmin, ptmax) in enumerate(zip(ptMins, ptMaxs)):
