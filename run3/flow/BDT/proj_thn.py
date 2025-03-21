@@ -26,12 +26,15 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
     if isinstance(sparse_flow, dict):
         for isparse, (_, sparse) in enumerate(sparse_flow.items()):
             hist_mass_temp = sparse.Projection(axes['Flow']['Mass'])
-            hist_mass_temp = sparse.Projection(axes['Flow']['Pt'])
+            hist_pt_temp = sparse.Projection(axes['Flow']['Pt'])
+            hist_sp_temp = sparse.Projection(axes['Flow']['sp'])
             # REVIEW: in case the Potential memory leak
             hist_mass_temp.SetName(f'hist_mass_{isparse}')
             hist_mass_temp.SetDirectory(0)
             hist_pt_temp.SetName(f'hist_pt_{isparse}')
             hist_pt_temp.SetDirectory(0)
+            hist_sp_temp.SetName(f'hist_sp_{isparse}')
+            hist_sp_temp.SetDirectory(0)
             # REVIEW: I would suggest to keep th fd score distribution of a dedicated pt bin,
             # from my experience, it could help us to choose a proper cutset
             if not syst:
@@ -47,6 +50,9 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
                 hist_pt = hist_pt_temp.Clone('hist_pt')
                 hist_pt.SetDirectory(0)
                 hist_pt.Reset()
+                hist_sp = hist_sp_temp.Clone('hist_sp')
+                hist_sp.SetDirectory(0)
+                hist_sp.Reset()
                 if not syst:
                     hist_fd = hist_fd_temp.Clone('hist_fd')
                     hist_fd.SetDirectory(0)
@@ -73,6 +79,8 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
         hist_mass.SetDirectory(0)
         hist_pt = sparse_flow.Projection(axes['Flow']['Pt'])
         hist_pt.SetDirectory(0)
+        hist_sp = sparse_flow.Projection(axes['Flow']['sp'])
+        hist_sp.SetDirectory(0)
         if not syst:
             hist_fd = sparse_flow.Projection(axes['Flow']['score_FD'])
             hist_fd.SetDirectory(0)
@@ -92,6 +100,7 @@ def proj_data(sparse_flow, ptMin, ptMax, centMin, centMax, axes, inv_mass_bins, 
     if not syst:
         hist_fd.Write(f'hist_fd_cent{cent_min}_{cent_max}_pt{ptMin}_{ptMax}', writeopt)
         hist_bkg.Write(f'hist_bkg_cent{cent_min}_{cent_max}_pt{ptMin}_{ptMax}', writeopt)
+        hist_sp.Write(f'hist_sp_cent{cent_min}_{cent_max}_pt{ptMin}_{ptMax}', writeopt)
 
 def proj_mc_reco(sparsesReco, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights, sPtWeightsB, writeopt):
     

@@ -18,7 +18,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(f"{script_dir}/../flow/")
 sys.path.append(f"{script_dir}/../flow/BDT")
 from flow_analysis_utils import get_centrality_bins
-from sparse_dicts import get_sparses
+from sparse_dicts import get_sparses, get_sparses_ep, get_sparses_trig
 
 def cook_thnsparse(thnsparse_list, ptmins, ptmaxs, axestokeep):
     '''
@@ -137,9 +137,107 @@ def get_sigma(preFiles, config_pre, centrality, resolution, outputDir, skip_proj
                 {skip_proj}")
     os.system(f'{command}')
 
+def pre_process_sparses_ep(config, centMin, centMax, axestokeep, outputDir):
+
+    # Load the ThnSparse
+    thnsparse_list_ep, sparse_axes_ep = get_sparses_ep(config['flow_files'])
+    thnsparse_list_trig, sparse_axes_trig = get_sparses_trig(config['flow_files'])
+
+    os.makedirs(f'{outputDir}/pre/AnRes', exist_ok=True)
+    out_file_proj = TFile(f'{outputDir}/pre/AnRes/Projections_{centMin}_{centMax}.root', 'recreate')
+        
+    def process_ep_pt_bin(ptmin, ptmax, centmin, centmax, thnsparse_list, axestokeep, outputDir):
+        print(f'Processing Ep pT bin {ptmin} - {ptmax}, cent {centmin}-{centmax}')
+        # add possibility to apply cuts for different variables
+        for iThn, (_, sparse) in enumerate(thnsparse_list.items()):
+            cloned_sparse = sparse.Clone()
+            cloned_sparse.GetAxis(sparse_axes_ep['FlowEp']['Pt']).SetRangeUser(ptmin, ptmax)
+            cloned_sparse.GetAxis(sparse_axes_ep['FlowEp']['cent']).SetRangeUser(centmin, centmax)
+            print(f"sparse_axes_ep: {sparse_axes_ep}")
+            thn_proj = cloned_sparse.Projection(len(axestokeep), array.array('i', [sparse_axes_ep['FlowEp'][axtokeep] for axtokeep in axestokeep]), 'O')
+            print(f"thn_proj.GetEntries(): {thn_proj.GetEntries()}")
+            thn_proj.SetName(cloned_sparse.GetName())
+            
+            if iThn == 0:
+                processed_sparse = thn_proj.Clone()
+            else:
+                processed_sparse.Add(thn_proj)
+        
+        if config.get('RebinSparse'):
+            rebin_factors = [config['RebinSparse'][axtokeep] for axtokeep in axestokeep]
+            processed_sparse = processed_sparse.Rebin(array.array('i', rebin_factors))
+        
+        outFile = ROOT.TFile(f'{outputDir}/pre/AnRes/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root', 'recreate')
+        outFile.mkdir('hf-task-flow-charm-hadrons')
+        outFile.cd('hf-task-flow-charm-hadrons')
+        processed_sparse.Write('hSparseFlowCharm')
+        outFile.Close()
+        
+        out_file_proj.mkdir(f'FlowEp_pt_{ptmin}_{ptmax}')
+        out_file_proj.cd(f'FlowEp_pt_{ptmin}_{ptmax}')
+        for idim in range(processed_sparse.GetNdimensions()):
+            histo = processed_sparse.Projection(idim)
+            histo.SetName(processed_sparse.GetAxis(idim).GetName())
+            histo.SetTitle(processed_sparse.GetAxis(idim).GetTitle())
+            histo.Write()
+        
+        del processed_sparse
+        
+        print(f'Finished processing Ep pT bin {ptmin} - {ptmax}')
+
+    def process_trig(centmin, centmax, thnsparse_list, axestokeep, outputDir):
+        print(f'Processing trig, cent {centmin}-{centmax}')
+        os.makedirs(f'{outputDir}/pre/AnResTrig', exist_ok=True)
+        print(f"thnsparse_list: {thnsparse_list}")
+        # add possibility to apply cuts for different variables
+        for iThn, (_, sparse) in enumerate(thnsparse_list.items()):
+            cloned_sparse = sparse.Clone()
+            print(f"sparse_axes_trig: {sparse_axes_trig}")
+            print(f"cloned_sparse.GetNdimensions(): {cloned_sparse.GetNdimensions()}")
+            print(f"sparse_axes_trig['FlowTrig']['cent']: {sparse_axes_trig['FlowTrig']['cent']}")
+            cloned_sparse.GetAxis(sparse_axes_trig['FlowTrig']['cent']).SetRangeUser(centmin, centmax)
+            
+            if iThn == 0:
+                processed_sparse = cloned_sparse.Clone()
+            else:
+                processed_sparse.Add(cloned_sparse)
+            print(f"cloned_sparse.Projection(sparse_axes_trig['FlowTrig']['cent']).Integral(): {cloned_sparse.Projection(sparse_axes_trig['FlowTrig']['cent']).Integral()}")
+            print(f"processed_sparse.Projection(sparse_axes_trig['FlowTrig']['cent']).Integral(): {processed_sparse.Projection(sparse_axes_trig['FlowTrig']['cent']).Integral()}")
+        
+        # if config.get('RebinSparse'):
+        #     rebin_factors = [config['RebinSparse'][axtokeep] for axtokeep in axestokeep]
+        #     processed_sparse = processed_sparse.Rebin(array.array('i', rebin_factors))
+        
+        
+        # for idim in range(processed_sparse.GetNdimensions()):
+        #     histo = processed_sparse.Projection(idim)
+        #     histo.SetName(processed_sparse.GetAxis(idim).GetName())
+        #     histo.SetTitle(processed_sparse.GetAxis(idim).GetTitle())
+        #     histo.Write()
+
+        outFile = ROOT.TFile(f'{outputDir}/pre/AnResTrig/AnalysisResults_trig.root', 'recreate')
+        outFile.mkdir('hf-task-flow-charm-hadrons/ep')
+        outFile.cd('hf-task-flow-charm-hadrons/ep')
+        processed_sparse.Write('hSparseEp')
+        print(f"processed_sparse.Projection(sparse_axes_trig['FlowTrig']['cent']).Integral(): {processed_sparse.Projection(sparse_axes_trig['FlowTrig']['cent']).Integral()}")
+        
+        outFile.Close()
+        
+        del processed_sparse
+        
+        print(f'Finished processing Trig')
+
+    # max_workers = 12 # hyperparameter
+    # with concurrent.futures.ThreadPoolExecutor(max_workers) as executor:
+    #     tasks = [executor.submit(process_ep_pt_bin, ptmin, ptmax, centMin, centMax, thnsparse_list_ep, axestokeep, outputDir) for ptmin, ptmax in zip(ptmins, ptmaxs)]
+    #     for task in concurrent.futures.as_completed(tasks):
+    #         task.result()
+    
+    process_trig(centMin, centMax, thnsparse_list_trig, axestokeep, outputDir)
+
 def process_pt_bin_Singlecut(iPt, ptmin, ptmax, centMin, centMax, bkg_max_cut, sig_mins, sig_maxs, thnsparse_list, sparse_axes, axestokeep, outputDir):
 
-    print(f'Processing pT bin {ptmin} - {ptmax}, cent {centMin}-{centMax}')
+    print(f'Processing pT bin {ptmin} - {ptmax}, cent {centMin}-{centMax}, Singlecut')
 
     # add possibility to apply cuts for different variables
     processed_sparses = []
@@ -147,7 +245,7 @@ def process_pt_bin_Singlecut(iPt, ptmin, ptmax, centMin, centMax, bkg_max_cut, s
     for iThn, (sparse_key, sparse) in enumerate(thnsparse_list.items()):
         cloned_sparse = sparse.Clone()
         cloned_sparse.GetAxis(sparse_axes['Flow']['Pt']).SetRangeUser(ptmin, ptmax)
-        # cloned_sparse.GetAxis(sparse_axes['Flow']['cent']).SetRangeUser(centMin, centMax)
+        cloned_sparse.GetAxis(sparse_axes['Flow']['cent']).SetRangeUser(centMin, centMax)
         cloned_sparse.GetAxis(sparse_axes['Flow']['score_bkg']).SetRangeUser(0, bkg_max_cut)
         
         temp_thn_projs = []
@@ -235,13 +333,14 @@ if __name__ == "__main__":
     parser.add_argument('--out_dir', metavar='text', default="", 
                         help='output directory for projected .root files')
     parser.add_argument('--pre', action='store_true', help='pre-process the AnRes.root')
+    parser.add_argument('--pre_ep', action='store_true', help='pre-process the AnRes.root when running the ep method')
     parser.add_argument('--sigma', action='store_true', help='get the sigma')
     parser.add_argument('--pre_sys', action='store_true', help='pre-process the AnRes.root for systematic')
     parser.add_argument('--skip_projection', '-sp', action='store_true', help='skip the projection')
     parser.add_argument("--suffix", "-s", metavar="text", default="", help="suffix for output files")
     args = parser.parse_args()
 
-    if not args.pre and not args.sigma and not args.pre_sys:
+    if not args.pre and not args.pre_ep and not args.sigma and not args.pre_sys:
         print('Please specify the action to perform.')
         sys.exit(1)
 
@@ -259,6 +358,9 @@ if __name__ == "__main__":
     
     if args.pre:
         pre_process(config, ptmins, ptmaxs, centMin, centMax, axestokeep, outputDir)
+    
+    if args.pre_ep:
+        pre_process_sparses_ep(config, centMin, centMax, axestokeep, outputDir)
     
     if args.sigma:
         

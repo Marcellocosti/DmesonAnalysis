@@ -107,6 +107,38 @@ def minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, output
 
         if systematics:
             print("Removed cutsets")
+            # Remove the loosest 1 cuts if 'minus1low' or 'minus1' is in systematics
+            if systematics == 'minus1low' or systematics == 'minus1':
+                listRawYield     = listRawYield[1:]
+                listRawYieldUnc  = listRawYieldUnc[1:]
+                listEffPrompt    = listEffPrompt[1:]
+                listEffPromptUnc = listEffPromptUnc[1:]
+                listEffFD        = listEffFD[1:]
+                listEffFDUnc     = listEffFDUnc[1:]
+            # Remove the tightest 1 cuts if 'minus1high' or 'minus' is in systematics
+            if systematics == 'minus1high' or systematics == 'minus1':
+                listRawYield     = listRawYield[:-1]
+                listRawYieldUnc  = listRawYieldUnc[:-1]
+                listEffPrompt    = listEffPrompt[:-1]
+                listEffPromptUnc = listEffPromptUnc[:-1]
+                listEffFD        = listEffFD[:-1]
+                listEffFDUnc     = listEffFDUnc[:-1]
+            # Remove the loosest 2 cuts if 'minus2low' or 'minus2' is in systematics
+            if systematics == 'minus2low' or systematics == 'minus2':
+                listRawYield     = listRawYield[2:]
+                listRawYieldUnc  = listRawYieldUnc[2:]
+                listEffPrompt    = listEffPrompt[2:]
+                listEffPromptUnc = listEffPromptUnc[2:]
+                listEffFD        = listEffFD[2:]
+                listEffFDUnc     = listEffFDUnc[2:]
+            # Remove the tightest 2 cuts if 'minus2high' or 'minus' is in systematics
+            if systematics == 'minus2high' or systematics == 'minus2':
+                listRawYield     = listRawYield[:-2]
+                listRawYieldUnc  = listRawYieldUnc[:-2]
+                listEffPrompt    = listEffPrompt[:-2]
+                listEffPromptUnc = listEffPromptUnc[:-2]
+                listEffFD        = listEffFD[:-2]
+                listEffFDUnc     = listEffFDUnc[:-2]
             # Remove the loosest 3 cuts if 'minus3low' or 'minus' is in systematics
             if systematics == 'minus3low' or systematics == 'minus3':
                 listRawYield     = listRawYield[2:]

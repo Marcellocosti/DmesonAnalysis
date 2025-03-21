@@ -124,6 +124,60 @@ def get_sparses_dicts(config, preprocessed):
 
     return axes_dict
 
+def get_sparses_trig(anres_files):
+
+    sparsesTrig, axes_dict = {}, {}
+    
+    print("Loading raw data")
+    axes_dict['FlowTrig'] = {
+        'cent': 0,
+        'Psi': 1,
+        'CosNPhi': 2,
+        'SinNPhi': 2,
+    }
+    # REVIEW: I would suggest to separete the config_flow and config_pre
+    # and load the flow files from the arguments
+    print(f"anres_files: {anres_files}")
+    for ifile, file in enumerate(anres_files):
+        print(f"Loading flow sparse from file: {file}")
+        infileflow = TFile(file)
+        sparsesTrig[f'FlowTrig_{ifile}'] = infileflow.Get('hf-task-flow-charm-hadrons/ep/hSparseEp')
+        infileflow.Close()
+
+    print(f"Loaded sparses trig!")
+
+    return sparsesTrig, axes_dict
+
+def get_sparses_ep(anres_files):
+
+    sparsesEp, axes_dict = {}, {}
+    
+    print("Loading raw data")
+    axes_dict['FlowEp'] = {
+        'Mass': 0,
+        'Pt': 1,
+        'cent': 2,
+        'sp': 3,
+        'cos2phi': 4,
+        'sin2phi': 5,
+        'cos2phiMinusPsi': 6,
+        'score_bkg': 7,
+        'score_FD': 8,
+        'occ': 9,
+    }
+    # REVIEW: I would suggest to separete the config_flow and config_pre
+    # and load the flow files from the arguments
+    print(f"anres_files: {anres_files}")
+    for ifile, file in enumerate(anres_files):
+        print(f"Loading flow sparse from file: {file}")
+        infileflow = TFile(file)
+        sparsesEp[f'FlowEp_{ifile}'] = infileflow.Get('hf-task-flow-charm-hadrons/hSparseFlowCharm')
+        infileflow.Close()
+
+    print(f"Loaded sparses ep!")
+
+    return sparsesEp, axes_dict
+
 def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], preprocessed=False, preprocess_dir='', systematics=False, iCut='', debug=False):
     """Load the sparses and axes infos
 

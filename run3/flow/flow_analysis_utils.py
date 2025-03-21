@@ -348,6 +348,8 @@ def get_centrality_bins(centrality):
         return '40_60', [40, 60]
     elif centrality == 'k4080':
         return '40_80', [40, 80]
+    elif centrality == 'k5080':
+        return '50_80', [50, 80]
     elif centrality == 'k6070':
         return '60_70', [60, 70]
     elif centrality == 'k6080':
