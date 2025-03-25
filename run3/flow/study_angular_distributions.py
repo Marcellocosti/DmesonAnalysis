@@ -54,31 +54,33 @@ print(f"⟨cos(2ψ₂)⟩ = {avg_cos_2psi}")
 print(f"⟨sin(2ψ₂)⟩ = {avg_sin_2psi}")
 
 # Draw results in TCanvas
-cFit = TCanvas("cFit", "Psi2 Fits", 800, 600)
+cFit = TCanvas("cFit", "Psi2 Fits", 600, 600)
 cFit.cd()
+cFit.SetLeftMargin(0.15)
 gStyle.SetOptFit(1)  # Display fit statistics
 
 hist_psi2.GetXaxis().SetRangeUser(-3.14/2, 3.14/2)
 print(f"hist_psi2.GetMinimum(): {hist_psi2.GetMinimum()}")
 print(f"hist_psi2.GetMinimum()*0.99999: {hist_psi2.GetMinimum()*0.99999}")
-hist_psi2.GetYaxis().SetRangeUser(hist_psi2.GetMaximum()*0.9, hist_psi2.GetMaximum()*1.2)
-hist_psi2.SetTitle("Fit to #psi_{2} Distribution")
+hist_psi2.GetYaxis().SetRangeUser(hist_psi2.GetMaximum()*0.9, hist_psi2.GetMaximum()*1.1)
+hist_psi2.SetTitle(f"Fit to #psi_{{2}} Distribution -- cent{args.cent}")
 hist_psi2.GetXaxis().SetTitle("#psi_{2} (rad)")
 hist_psi2.GetYaxis().SetTitle("Counts")
 
-hist_psi2.Draw()
+hist_psi2.SetLineColor(1)  # Red
+hist_psi2.Draw('pe')
 func_cos_psi2.SetLineColor(2)  # Red
 func_sin_psi2.SetLineColor(4)  # Blue
 func_cos_psi2.Draw("same")
 func_sin_psi2.Draw("same")
 
 # Create legend
-legend = TLegend(0.4, 0.4, 0.6, 0.6)  # Adjust position (x1, y1, x2, y2)
+legend = TLegend(0.25, 0.65, 0.6, 0.85)  # Adjust position (x1, y1, x2, y2)
 legend.SetBorderSize(0)  # No border
 legend.SetFillStyle(0)  # Transparent background
 legend.SetTextSize(0.04)  # Adjust text size
-legend.AddEntry(func_cos_psi2, f"#LTcos(2#phi_{{2}})#GT = {func_cos_psi2.GetParameter(1):.5f}", "l")
-legend.AddEntry(func_sin_psi2, f"#LTsin(2#phi_{{2}})#GT = {func_sin_psi2.GetParameter(1):.5f}", "l")
+legend.AddEntry(func_cos_psi2, f"#LTcos(2#psi_{{2}})#GT = {func_cos_psi2.GetParameter(1):.5f} +/- {func_cos_psi2.GetParError(1):.5f}", "l")
+legend.AddEntry(func_sin_psi2, f"#LTsin(2#psi_{{2}})#GT = {func_sin_psi2.GetParameter(1):.5f} +/- {func_sin_psi2.GetParError(1):.5f}", "l")
 legend.Draw()
 
 outfile.cd()
@@ -105,7 +107,7 @@ print("[Cos] Y values:", cos_y_values)
 
 sin_x_values = []
 sin_y_values = []
-n_points = gAvgCosPhi2.GetN()
+n_points = gAvgSinPhi2.GetN()
 for i in range(n_points):
     x, y = ctypes.c_double(0), ctypes.c_double(0)
     gAvgSinPhi2.GetPoint(i, x, y)
@@ -117,24 +119,26 @@ print("[Sin] Y values:", sin_y_values)
 
 avg_cos_psi = func_cos_psi2.GetParameter(1)
 avg_sin_psi = func_sin_psi2.GetParameter(1)
-cos_delta_phi_psi = [cos_phi*avg_cos_psi + sin_phi*avg_sin_psi for cos_phi, sin_phi in zip(cos_y_values, sin_y_values)]
 
+cos_delta_phi_psi = [cos_phi*avg_cos_psi + sin_phi*avg_sin_psi for cos_phi, sin_phi in zip(cos_y_values, sin_y_values)]
 gAvgDeltaPhiPsi = gAvgCosPhi2.Clone("gAvgDeltaPhiPsi")
 gAvgDeltaPhiPsi.SetName("gAvgDeltaPhiPsi")
 gAvgDeltaPhiPsi.SetTitle("Average Delta Phi Psi")
-
-# Update the graph with new points
 for i in range(n_points):
     gAvgDeltaPhiPsi.SetPoint(i, cos_x_values[i], cos_delta_phi_psi[i])
-
-# Remove Y error bars but keep X error bars
-for i in range(n_points):
-    # Keeping the X error, and setting Y error to 0
-    print(f"gAvgCosPhi2.GetErrorX(i): {gAvgCosPhi2.GetErrorX(i)}")
     gAvgDeltaPhiPsi.SetPointError(i, gAvgCosPhi2.GetErrorX(i), gAvgCosPhi2.GetErrorX(i), 0, 0)  # Set Y errors to 0
+
+inverted_cos_delta_phi_psi = [cos_phi*avg_sin_psi + sin_phi*avg_cos_psi for cos_phi, sin_phi in zip(cos_y_values, sin_y_values)]
+gSinCosAvgDeltaPhiPsi = gAvgCosPhi2.Clone("gSinCosAvgDeltaPhiPsi")
+gSinCosAvgDeltaPhiPsi.SetName("gSinCosAvgDeltaPhiPsi")
+gSinCosAvgDeltaPhiPsi.SetTitle("Average Delta Phi Psi")
+for i in range(n_points):
+    gSinCosAvgDeltaPhiPsi.SetPoint(i, cos_x_values[i], inverted_cos_delta_phi_psi[i])
+    gSinCosAvgDeltaPhiPsi.SetPointError(i, gAvgCosPhi2.GetErrorX(i), gAvgCosPhi2.GetErrorX(i), 0, 0)  # Set Y errors to 0
 
 # Create canvas to draw
 gAvgDeltaPhiPsi.Write()
+gSinCosAvgDeltaPhiPsi.Write()
 outfile.Close()
 
 gAvgDeltaPhiPsi.GetYaxis().SetRangeUser(-0.00005, 0.0003)

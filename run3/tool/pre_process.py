@@ -227,11 +227,11 @@ def pre_process_sparses_ep(config, centMin, centMax, axestokeep, outputDir):
         
         print(f'Finished processing Trig')
 
-    # max_workers = 12 # hyperparameter
-    # with concurrent.futures.ThreadPoolExecutor(max_workers) as executor:
-    #     tasks = [executor.submit(process_ep_pt_bin, ptmin, ptmax, centMin, centMax, thnsparse_list_ep, axestokeep, outputDir) for ptmin, ptmax in zip(ptmins, ptmaxs)]
-    #     for task in concurrent.futures.as_completed(tasks):
-    #         task.result()
+    max_workers = 12 # hyperparameter
+    with concurrent.futures.ThreadPoolExecutor(max_workers) as executor:
+        tasks = [executor.submit(process_ep_pt_bin, ptmin, ptmax, centMin, centMax, thnsparse_list_ep, axestokeep, outputDir) for ptmin, ptmax in zip(ptmins, ptmaxs)]
+        for task in concurrent.futures.as_completed(tasks):
+            task.result()
     
     process_trig(centMin, centMax, thnsparse_list_trig, axestokeep, outputDir)
 
