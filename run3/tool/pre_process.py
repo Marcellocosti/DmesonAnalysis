@@ -69,6 +69,7 @@ def pre_process(config, ptmins, ptmaxs, centmin, centmax, axestokeep, outputDir)
         print(f'Processing pT bin {ptmin} - {ptmax}, cent {centmin}-{centmax}')
         # add possibility to apply cuts for different variables
         for iThn, (_, sparse) in enumerate(thnsparse_list.items()):
+            print(f"    Processing sparse {iThn}")
             cloned_sparse = sparse.Clone()
             cloned_sparse.GetAxis(sparse_axes['Flow']['Pt']).SetRangeUser(ptmin, ptmax)
             cloned_sparse.GetAxis(sparse_axes['Flow']['cent']).SetRangeUser(centmin, centmax)
@@ -76,15 +77,15 @@ def pre_process(config, ptmins, ptmaxs, centmin, centmax, axestokeep, outputDir)
             thn_proj = cloned_sparse.Projection(len(axestokeep), array.array('i', [sparse_axes['Flow'][axtokeep] for axtokeep in axestokeep]), 'O')
             print(f"thn_proj.GetEntries(): {thn_proj.GetEntries()}")
             thn_proj.SetName(cloned_sparse.GetName())
+
+            if config.get('RebinSparse'):
+                rebin_factors = [config['RebinSparse'][axtokeep] for axtokeep in axestokeep]
+                thn_proj = thn_proj.Rebin(array.array('i', rebin_factors))
             
             if iThn == 0:
                 processed_sparse = thn_proj.Clone()
             else:
                 processed_sparse.Add(thn_proj)
-        
-        if config.get('RebinSparse'):
-            rebin_factors = [config['RebinSparse'][axtokeep] for axtokeep in axestokeep]
-            processed_sparse = processed_sparse.Rebin(array.array('i', rebin_factors))
         
         outFile = ROOT.TFile(f'{outputDir}/pre/AnRes/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root', 'recreate')
         outFile.mkdir('hf-task-flow-charm-hadrons')
