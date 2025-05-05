@@ -113,135 +113,159 @@ def extract_template_weights(config):
     with open(config, 'r') as cfg:
         config = yaml.safe_load(cfg)
 
-    weights_file = TFile(config['WeightsFile'], 'recreate')
+    os.makedirs(f"{config['out_dir']}/cutvar_{config['suffix']}/ry/", exist_ok=True)
+    weights_file = TFile(f"{config['out_dir']}/cutvar_{config['suffix']}/ry/weights.root", 'recreate')
 
+    ###### MC decay tables
+    # D+ decay table from https://github.com/AliceO2Group/O2DPG/blob/master/MC/config/PWGHF/pythia8/generator/pythia8_charmhadronic_with_decays_Mode2.cfg
+    # 411:oneChannel = 1 0.0752 0 -321 211 211
+    # 411:addChannel = 1 0.0104 0 -313 211
+    # 411:addChannel = 1 0.0156 0 311 211
+    # 411:addChannel = 1 0.0752 0 333 211, same amount of D+->KKpi and D+->Kpipi
+    
+    # Ds decay table in MC --> all in Ds --> KKpi
+        
+    ##### PDG branching ratios
+    # D+ -> Kpipi: 9.38e-2
+    # D+ -> KKpi: 9.68e-3
+    # Ds+ -> KKpi: 5.37e-2
+        
+    # Reweight contributions with (BR_PDG / BR_MC)
+    BRDplusTotMC = 0.0752 + 0.0104 + 0.0156 + 0.0752
+    BRDplusKPiPiMC = 0.0752 + 0.0156 + 0.0104
+    BRDplusKKPiMC = 0.0752
+    BRDplusKPiPiPDG = 9.38e-2
+    BRDplusKKPiPDG = 9.68e-3
+    BRDsKKPiPDG = 5.37e-2
+    BRDsKKPiMC = 1.
+    BRDsPhiPiKKPiPDG = 2.21e-2 + 0.29e-2  # 0.29 is added so that the BRs of Ds --> Phi Pi and Ds --> K*K add to 5.37e-2
+    BRDsPhiPiKKPiMC = 4.4e-2 / (4.e-2 + 4.4e-2)   # Same BR of native pythia is kept, but only Ds -> Phi Pi 
+                                                  # and Ds -> K*K are implemented, thus they are rescaled
+    BRDsKStarKKKPiPDG = 2.58e-2 + 0.29e-2
+    BRDsKStarKKKPiMC = 1 - BRDsPhiPiKKPiMC
+    BRD0KPiPDG = 3.89e-2
+    BRD0KPiMC = 3.89e-2
+    BRD0KKPiMC = 3.89e-3
+    
+    signalBRNorm = BRDplusKPiPiPDG / (BRDplusKPiPiMC / BRDplusTotMC)
     templatesBRNorms = []
-    if config['Dmeson'] == 'Dplus':
-        ###### MC decay tables
-        # D+ decay table from https://github.com/AliceO2Group/O2DPG/blob/master/MC/config/PWGHF/pythia8/generator/pythia8_charmhadronic_with_decays_Mode2.cfg
-        # 411:oneChannel = 1 0.0752 0 -321 211 211
-        # 411:addChannel = 1 0.0104 0 -313 211
-        # 411:addChannel = 1 0.0156 0 311 211
-        # 411:addChannel = 1 0.0752 0 333 211, same amount of D+->KKpi and D+->Kpipi
-        
-        # Ds decay table in MC --> all in Ds --> KKpi
-        
-        ##### PDG branching ratios
-        # D+ -> Kpipi: 9.38e-2
-        # D+ -> KKpi: 9.68e-3
-        # Ds+ -> KKpi: 5.37e-2
-        
-        # Reweight contributions with (BR_PDG / BR_MC)
-        BRDplusTotMC = 0.0752 + 0.0104 + 0.0156 + 0.0752
-        BRDplusKPiPiMC = 0.0752 + 0.0156 + 0.0104
-        BRDplusKKPiMC = 0.0752
-        BRDplusKPiPiPDG = 9.38e-2
-        BRDplusKKPiPDG = 9.68e-3
-        BRDsKKPiPDG = 5.37e-2
-        BRDsKKPiMC = 1.
-        BRD0KPiPDG = 3.89e-2
-        BRD0KPiMC = 3.89e-2
-        BRD0KKPiMC = 3.89e-3
-        
-        print(config['TemplsNames'])
-        for iTemplate, templ in enumerate(config['TemplsNames']):
-            if templ == "DsKKPi":
-                # Ds/D+ is underestimated in pythia CRMode2 --> multiply by 1.25
-                templatesBRNorms.append( (BRDsKKPiPDG / BRDsKKPiMC) * 1.25)
-                if iTemplate == 0:
-                    firstTemplBRNorm = (BRDsKKPiPDG / BRDsKKPiMC) * 1.25
-            elif templ == "DplusKKPi":
-                templatesBRNorms.append(BRDplusKKPiPDG / (BRDplusKKPiMC / BRDplusTotMC))
-                if iTemplate == 0:
-                    firstTemplBRNorm = BRDplusKKPiPDG / (BRDplusKKPiMC / BRDplusTotMC)
-            elif templ == "DstarKPiPi":
-                # the decay table of D* is not modified in the MC, thus BR_PDG / BR_MC = 1
-                # but the modification of the decay table of D0 needs to be taken into account
-                templatesBRNorms.append(1. * (BRD0KPiPDG / (BRD0KPiMC / (BRD0KPiPDG + BRD0KKPiMC))))
-            else:
-                templatesBRNorms.append(1.)
-        signalBRNorm = BRDplusKPiPiPDG / (BRDplusKPiPiMC / BRDplusTotMC)
+    for _, templ in enumerate(config['TemplsNames']):
+        if templ == "DsKKPi":
+            # Ds/D+ is underestimated in pythia CRMode2 --> multiply by 1.25
+            templatesBRNorms.append( (BRDsKKPiPDG / BRDsKKPiMC) * 1.25)
+        elif templ == "DsPhiPi":
+            # Ds/D+ is underestimated in pythia CRMode2 --> multiply by 1.25
+            templatesBRNorms.append( (BRDsPhiPiKKPiPDG / BRDsPhiPiKKPiMC) * 1.25)
+        elif templ == "DsKStarK":
+            # Ds/D+ is underestimated in pythia CRMode2 --> multiply by 1.25
+            templatesBRNorms.append( (BRDsKStarKKKPiPDG / BRDsKStarKKKPiMC) * 1.25)
+        elif templ == "DplusKKPi":
+            templatesBRNorms.append(BRDplusKKPiPDG / (BRDplusKKPiMC / BRDplusTotMC))
+        elif templ == "DstarKPiPi":
+            # the decay table of D* is not modified in the MC, thus BR_PDG / BR_MC = 1
+            # but the modification of the decay table of D0 needs to be taken into account
+            templatesBRNorms.append(1. * (BRD0KPiPDG / (BRD0KPiMC / (BRD0KPiPDG + BRD0KKPiMC))))
+        else:
+            templatesBRNorms.append(1.)
 
     ### load the trees for bkg and signal
-    templatesDfs = [pd.read_parquet(templPath) for templPath in config['TemplsPaths']]
-    signalDf = pd.read_parquet(config['SignalPath'])
-
-    templatesYieldsDfs = [signalDf] + templatesDfs 
+    templatesYieldsDfs = [pd.read_parquet(config['SignalPath'])] + [pd.read_parquet(templPath) for templPath in config['TemplsPaths']]
     templatesYieldsNames = ["Signal"] + config['TemplsNames']
     templatesBRNorms = [signalBRNorm] + templatesBRNorms
-    config_files = [f for f in os.listdir(f"{config['out_dir']}/cutvar_{config['suffix']}/config/") if os.path.isfile(os.path.join(f"{config['out_dir']}/cutvar_{config['suffix']}/config/", f))]
-    print(f"config_files: {config_files}")
     
     ### Loop over the cutsets
+    config_files = [f for f in os.listdir(f"{config['out_dir']}/cutvar_{config['suffix']}/config/") if os.path.isfile(os.path.join(f"{config['out_dir']}/cutvar_{config['suffix']}/config/", f))]
     for config_file in config_files:
-        match = re.search(r"(\d+)\.yml$", os.path.basename(config_file))
-        if match:
-            cutset = match.group(1)
+        match = re.search(r"(\d+)\.yml$", config_file)
+        if not match:
+            continue
+        cutset = match.group(1)
+
         with open(f"{config['out_dir']}/cutvar_{config['suffix']}/config/{config_file}", 'r') as cfg:
             config_cut = yaml.safe_load(cfg)
-        pt_bins = array.array('d', config_cut['cutvars']['Pt']['min'] + [config_cut['cutvars']['Pt']['max'][-1]])
-        hist_frac_templ_to_signal = {}
-        hist_frac_templ_to_firsttempl = {}
-        for iTempl, templName in enumerate(templatesYieldsNames):
-            hist_frac_templ_to_signal[templName] = ROOT.TH1D(f"hist_{templName}_over_signal", f";p_T;{templName}/Signal", len(pt_bins)-1, pt_bins)
-            if iTempl >= 2:
-                hist_frac_templ_to_firsttempl[templName] = ROOT.TH1D(f"hist_{templName}_over_{templatesYieldsNames[1]}", f";p_T;{templName}/{templatesYieldsNames[1]}", len(pt_bins)-1, pt_bins)
-        hist_frac_templ_to_signal["TotalBkg"] = ROOT.TH1D(f"hist_totalbkg_over_signal", f";p_T;Bkg/Signal", len(pt_bins)-1, pt_bins)
-        print(f"hist_frac_templ_to_signal: {hist_frac_templ_to_signal}")
 
-        ### Obtain the raw histo template and the one reweighted with the respective BR
-        for iPt, (ptmin, ptmax) in enumerate(zip(config_cut['cutvars']['Pt']['min'], config_cut['cutvars']['Pt']['max'])):
-            nbins = int( (config_cut['fitrangemax'][iPt] - config_cut['fitrangemin'][iPt]) * 1000)
-            hist_templ_total = ROOT.TH1D(f"hist_templ_total", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
-            hist_signal = ROOT.TH1D(f"hist_signal", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
-            hist_first_templ = ROOT.TH1D(f"hist_first_templ", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
-            for iTemplate, (templName, templDf, BRnorm) in enumerate(zip(templatesYieldsNames, templatesYieldsDfs, templatesBRNorms)):
-                weights_file.mkdir(f"cutset_{cutset}/{templName}/pt_{ptmin}_{ptmax}/")
-                weights_file.cd(f"cutset_{cutset}/{templName}/pt_{ptmin}_{ptmax}/")
-                templDfPt = templDf.query(f"fPt >= {ptmin} and fPt < {ptmax}")
+        pt_mins = config_cut['cutvars']['Pt']['min']
+        pt_maxs = config_cut['cutvars']['Pt']['max']
+        pt_bins = array.array('d', pt_mins + [pt_maxs[-1]])
+
+        # Initialize histograms
+        histos = {
+            name: {
+                "mass": None,
+                "massbr": None,
+                "massbryield": None,
+                "yield": TH1D(f"reco_yields_{name}", f";p_T;{name}/Counts", len(pt_bins)-1, pt_bins),
+                "br": TH1D(f"br_{name}", f";p_T;BR", len(pt_bins)-1, pt_bins),
+                "rew": TH1D(f"rew_factor_{name}", f";p_T;BR x N_{{reco}}", len(pt_bins)-1, pt_bins),
+                "rel": TH1D(f"rel_weight_to_sgn_{name}", f";p_T;Rel. Sgn. Weight", len(pt_bins)-1, pt_bins)
+            } for name in templatesYieldsNames
+        }
+
+        for iPt, (ptmin, ptmax) in enumerate(zip(pt_mins, pt_maxs)):
+            pt_dir = f"cutset_{cutset}/pt_{ptmin}_{ptmax}/"
+            weights_file.mkdir(pt_dir)
+            weights_file.cd(pt_dir)
+
+            fit_min = config_cut['fitrangemin'][iPt]
+            fit_max = config_cut['fitrangemax'][iPt]
+            nbins = int((fit_max - fit_min) * 1000)
+
+            histo_total_br = TH1D(f"histo_total_br", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, fit_min, fit_max)
+            histo_total_br_yield = TH1D(f"histo_total_br_yield", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, fit_min, fit_max)
+            # Evaluate templates
+            for name, df, br in zip(templatesYieldsNames, templatesYieldsDfs, templatesBRNorms):
+                df_sel = df.query(f"{ptmin} <= fPt < {ptmax} and {fit_min} <= fM < {fit_max}")
+
                 if config.get('MlDiffWeights'):
-                    if config_cut['cutvars'].get('score_bkg'):
-                        print(f"fMlScore0 >= {config_cut['cutvars']['score_bkg']['min'][iPt]} and fMlScore0 < {config_cut['cutvars']['score_bkg']['max'][iPt]}")
-                        templDfPt = templDfPt.query(f"fMlScore0 >= {config_cut['cutvars']['score_bkg']['min'][iPt]} and fMlScore0 < {config_cut['cutvars']['score_bkg']['max'][iPt]}")
-                    if config_cut['cutvars'].get('score_FD'):
-                        print(f"fMlScore1 >= {config_cut['cutvars']['score_FD']['min'][iPt]} and fMlScore1 < {config_cut['cutvars']['score_FD']['max'][iPt]}")
-                        templDfPt = templDfPt.query(f"fMlScore1 >= {config_cut['cutvars']['score_FD']['min'][iPt]} and fMlScore1 < {config_cut['cutvars']['score_FD']['max'][iPt]}")
+                    score_bkg = config_cut['cutvars'].get('score_bkg')
+                    score_fd = config_cut['cutvars'].get('score_FD')
+                    if score_bkg:
+                        df_sel = df_sel.query(f"fMlScore0 < {score_bkg['max'][iPt]}")
+                    if score_fd:
+                        df_sel = df_sel.query(f"{score_fd['min'][iPt]} <= fMlScore1 < {score_fd['max'][iPt]}")
 
-                hist_templ = ROOT.TH1D(f"h{templName}Raw", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
-                hist_templ_BR_rew = ROOT.TH1D(f"h{templName}BRRew", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, config_cut['fitrangemin'][iPt], config_cut['fitrangemax'][iPt])
-                for mass in templDfPt["fM"].to_numpy():
-                    hist_templ.Fill(mass)
-                hist_templ.Write(f"h{templName}Raw")
-                if templName == 'Signal':
-                    hist_signal.Add(hist_templ, signalBRNorm)
-                    hist_templ_BR_rew.Add(hist_templ, signalBRNorm)
-                elif iTemplate == 1:
-                    hist_templ_BR_rew.Add(hist_templ, BRnorm)
-                    hist_first_templ.Add(hist_templ, BRnorm)
-                else:
-                    hist_templ_BR_rew.Add(hist_templ, BRnorm)
-                    hist_templ_total.Add(hist_templ, BRnorm)
+                n_reco = len(df_sel)
+                histos[name]["yield"].SetBinContent(iPt+1, n_reco)
+                histos[name]["br"].SetBinContent(iPt+1, br)
+                histos[name]["rew"].SetBinContent(iPt+1, n_reco * br)
+                histos[name]["rel"].SetBinContent(iPt+1, histos[name]["rew"].GetBinContent(iPt+1) / histos["Signal"]["rew"].GetBinContent(iPt+1))
+                print(f"n_reco: {n_reco}, br: {br}")
 
-                hist_templ_BR_rew.Write(f"h{templName}RescaledBR")
-                hist_frac_templ_to_signal[templName].SetBinContent(iPt+1, hist_templ_BR_rew.Integral() / hist_signal.Integral())
-                if iTemplate >= 2:
-                    hist_frac_templ_to_firsttempl[templName].SetBinContent(iPt+1, hist_templ_BR_rew.Integral() / hist_first_templ.Integral())
+                # Fill and write mass histogram
+                histos[name]["mass"] = TH1D(f"htempl_{name}", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, fit_min, fit_max)
+                histos[name]["massbr"] = TH1D(f"htempl_{name}", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, fit_min, fit_max)
+                histos[name]["massbryield"] = TH1D(f"htempl_{name}", ";#it{M}(K#pi#pi) (GeV/#it{c})", nbins, fit_min, fit_max)
+                for mass in df_sel["fM"].to_numpy():
+                    histos[name]["mass"].Fill(mass)
+                    histos[name]["massbr"].Fill(mass)
+                    histos[name]["massbryield"].Fill(mass)
+                histos[name]["mass"].Smooth(10)
+                histos[name]["mass"].Write(f"h{name}Raw")
+                histos[name]["massbr"].Smooth(10)
+                histos[name]["massbr"].Scale(histos[name]["br"].GetBinContent(iPt+1) / histos["Signal"]["br"].GetBinContent(iPt+1))
+                histos[name]["massbryield"].Smooth(10)
+                histos[name]["massbryield"].Scale(histos[name]["rel"].GetBinContent(iPt+1))
 
-            hist_frac_templ_to_signal["TotalBkg"].SetBinContent(iPt+1, hist_templ_total.Integral() / hist_signal.Integral())
-            weights_file.mkdir(f"cutset_{cutset}/CombinedSpectra/pt_{ptmin}_{ptmax}/")
-            weights_file.cd(f"cutset_{cutset}/CombinedSpectra/pt_{ptmin}_{ptmax}/")
-            hist_signal.Smooth(10)
-            hist_signal.Write()
-            hist_templ_total.Smooth(10)
-            hist_templ_total.Write()
+                if name != "Signal":
+                    histo_total_br.Add(histos[name]["massbr"])
+                    histo_total_br_yield.Add(histos[name]["massbryield"])
 
-        weights_file.cd(f"cutset_{cutset}")
-        for iTemplFrac in hist_frac_templ_to_signal.values():
-            iTemplFrac.Write()
-        for iTemplFrac in hist_frac_templ_to_firsttempl.values():
-            iTemplFrac.Write()
+            histo_total_br.Write(f"histo_total_br_rew")
+            histo_total_br_yield.Write(f"histo_total_br_yield_rew")
+                
+        # Save summary histograms
+        for name, histset in histos.items():
+            summary_dir = f"cutset_{cutset}/{name}/"
+            weights_file.mkdir(summary_dir)
+            weights_file.cd(summary_dir)
+            histset["mass"].Write("hMassRaw")
+            histset["massbr"].Write("hMassBrWrtSgn")
+            histset["massbryield"].Write("hMassBrYieldWrtSgn")
+            histset["yield"].Write("hYield")
+            histset["br"].Write("hBR")
+            histset["rew"].Write("hRewFactor")
+            histset["rel"].Write("hRelWeightToSgn")
 
-    weights_file.Close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(descriPtion="Arguments")

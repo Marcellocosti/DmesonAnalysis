@@ -257,7 +257,14 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
        
     if get_mc_gen or get_mc_reco:
         print(f"Loading mc sparse from: {config['eff_filename']}")
-        infiletask = TFile(config['eff_filename'])
+        if isinstance(config['eff_filename'], list):
+            infiletask = [TFile(filename) for filename in config['eff_filename']]
+        else:
+            infiletask = TFile(config['eff_filename'])
+    
+    print("\n\n")
+    print(f"infiletask: {infiletask}")
+    print("\n\n")
     
     if get_mc_reco: 
         if config['Dmeson'] == 'Dzero':
@@ -298,8 +305,17 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
             axes_dict['RecoReflFD'] = axes_reco
             #TODO: safety checks for Dmeson reflecton and secondary peak
         elif config['Dmeson'] == 'Dplus':
-            if config.get('MCAfterPRDplus'):
+
+            if isinstance(infiletask, list):
+                sparsesReco['RecoFD'] = [file.Get('hf-task-dplus/hSparseMassFD') for file in infiletask]
+                sparsesReco['RecoPrompt'] = [file.Get('hf-task-dplus/hSparseMassPrompt') for file in infiletask]
+            else:
+                sparsesReco['RecoFD'] = infiletask.Get('hf-task-dplus/hSparseMassFD')
                 sparsesReco['RecoPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassPrompt')
+
+            if config.get('MCAfterPRDplus'):
+                print(f"sparsesReco['RecoPrompt']: {sparsesReco['RecoPrompt']}")
+                # sparsesReco['RecoPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassPrompt')
                 axes_dict['RecoPrompt'] = {
                     'Mass': 0,
                     'Pt': 1,
@@ -309,7 +325,8 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
                     'cent': 5,
                     'occ': 6,
                 }
-                sparsesReco['RecoFD'] = infiletask.Get('hf-task-dplus/hSparseMassFD')
+                print(f"sparsesReco['RecoFD']: {sparsesReco['RecoFD']}")
+                # sparsesReco['RecoFD'] = infiletask.Get('hf-task-dplus/hSparseMassFD')
                 axes_dict['RecoFD'] = {
                     'Mass': 0,
                     'Pt': 1,
@@ -322,7 +339,7 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
                     'flag_bhad': 8,
                 }
             else:
-                sparsesReco['RecoPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassPrompt')
+                # sparsesReco['RecoPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassPrompt')
                 axes_dict['RecoPrompt'] = {
                     'Mass': 0,
                     'Pt': 1,
@@ -332,7 +349,7 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
                     'cent': 5,
                     'occ': 6,
                 }
-                sparsesReco['RecoFD'] = infiletask.Get('hf-task-dplus/hSparseMassFD')
+                # sparsesReco['RecoFD'] = infiletask.Get('hf-task-dplus/hSparseMassFD')
                 axes_dict['RecoFD'] = {
                     'Mass': 0,
                     'Pt': 1,
@@ -371,7 +388,11 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
 
     if get_mc_gen: 
         print(f"Loading mc gen sparse from: {config['eff_filename']}")
-        infiletask = TFile(config['eff_filename'])
+        # infiletask = TFile(config['eff_filename'])
+        if isinstance(config['eff_filename'], list):
+            infiletask = [TFile(filename) for filename in config['eff_filename']]
+        else:
+            infiletask = TFile(config['eff_filename'])
         if config['Dmeson'] == 'Dzero':
             axes_gen = {
                 'Pt': 0,
@@ -390,15 +411,23 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
             axes_dict['GenFD'] = axes_gen
             #TODO: safety checks for Dmeson reflecton and secondary peak
         elif config['Dmeson'] == 'Dplus':
-            if config.get('MCAfterPRDplus'):
+
+            if isinstance(infiletask, list):
+                sparsesGen['GenPrompt'] = [file.Get('hf-task-dplus/hSparseMassGenPrompt') for file in infiletask]
+                sparsesGen['GenFD'] = [file.Get('hf-task-dplus/hSparseMassGenFD') for file in infiletask]
+            else:
                 sparsesGen['GenPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassGenPrompt')
+                sparsesGen['GenFD'] = infiletask.Get('hf-task-dplus/hSparseMassGenFD')
+
+            if config.get('MCAfterPRDplus'):
+                # sparsesGen['GenPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassGenPrompt')
                 axes_dict['GenPrompt'] = {
                     'Pt': 0,
                     'y': 1,
                     'cent': 2,
                     'occ': 3
                 }
-                sparsesGen['GenFD'] = infiletask.Get('hf-task-dplus/hSparseMassGenFD')
+                # sparsesGen['GenFD'] = infiletask.Get('hf-task-dplus/hSparseMassGenFD')
                 axes_dict['GenFD'] = {
                     'Pt': 0,
                     'y': 1,
@@ -408,14 +437,14 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
                     'flag_bhad': 5,
                 }
             else:
-                sparsesGen['GenPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassGenPrompt')
+                # sparsesGen['GenPrompt'] = infiletask.Get('hf-task-dplus/hSparseMassGenPrompt')
                 axes_dict['GenPrompt'] = {
                     'Pt': 0,
                     'y': 1,
                     'cent': 2,
                     'occ': 3
                 }
-                sparsesGen['GenFD'] = infiletask.Get('hf-task-dplus/hSparseMassGenFD')
+                # sparsesGen['GenFD'] = infiletask.Get('hf-task-dplus/hSparseMassGenFD')
                 axes_dict['GenFD'] = {
                     'Pt': 0,
                     'y': 1,
@@ -444,7 +473,11 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
             }
 
     if get_mc_gen or get_mc_reco:
-        infiletask.Close()
+        if isinstance(config['eff_filename'], list):
+            for file in infiletask:
+                file.Close()
+        else:
+            infiletask.Close()
 
     print(f"Loaded sparses!")
     if debug:

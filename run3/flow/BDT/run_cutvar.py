@@ -193,11 +193,17 @@ def run_full_cut_variation(config_flow,
 	if vn:
 		print("\033[32mINFO: vn extraction will be performed\033[0m")
 		check_dir(f"{output_dir}/ry")
-		SimFitPath = os.path.join(work_dir, "./../get_vn_vs_mass.py")
 		if config['Dmeson'] == 'Dplus' and config.get('IncludeTempls'):
 			extract_template_weights(config_flow)
-
 		print('EXTRACTED TEMPLATE WEIGHTS')
+		
+		PrefitMcPath = os.path.join(work_dir, "./../invmassfitter/prefit_mc.py")
+		if config.get("PrefitMC"):
+			print("########## PREFITTING MC FIRST ##########")
+			print(f"\033[32mpython3 {PrefitMcPath} {config_flow} {output_dir}/proj/proj_{suffix}_00.root {cent} -o {output_dir}/ry -s _{suffix}_prompt_enhanced\033[0m")
+			os.system(f"python3 {PrefitMcPath} {config_flow} {output_dir}/proj/proj_{suffix}_00.root {cent} -o {output_dir}/ry -s _{suffix}_prompt_enhanced")
+
+		SimFitPath = os.path.join(work_dir, "./../get_vn_vs_mass.py")
 		def run_simfit(i):
 			"""Run simultaneous fit for a given cutset index."""
 			iCutSets = f"{i:02d}"

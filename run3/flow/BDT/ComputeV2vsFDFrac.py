@@ -21,7 +21,7 @@ def load_v2_files(inputdir):
     if os.path.exists(f'{inputdir}/ry'):
         print(f'Loading v2 files from {inputdir}/ry')
         v2Files = [f'{inputdir}/ry/{file}'
-                    for file in os.listdir(f'{inputdir}/ry') if file.endswith('.root')]
+                    for file in os.listdir(f'{inputdir}/ry') if file.endswith('.root') and file.startswith('raw_yields')]
         v2Files.sort()
     else:
         raise ValueError(f'No ry folder found in {inputdir}')

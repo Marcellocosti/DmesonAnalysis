@@ -107,7 +107,8 @@ InvMassFitter::InvMassFitter() :
   fFixSecWidth(kFALSE),
   fSecFunc(0x0),
   fTotFunc(0x0),
-  fAcceptValidFit(kFALSE)
+  fAcceptValidFit(kFALSE),
+  fMassVar("mass", "Mass", this->fMinMass, this->fMaxMass) 
 {
   /// default constructor
 }
@@ -174,7 +175,8 @@ InvMassFitter::InvMassFitter(const TH1F *histoToFit, Double_t minvalue, Double_t
   fFixSecWidth(kFALSE),
   fSecFunc(0x0),
   fTotFunc(0x0),
-  fAcceptValidFit(kFALSE)
+  fAcceptValidFit(kFALSE),
+  fMassVar("mass", "Mass", this->fMinMass, this->fMaxMass) 
 {
   /// standard constructor
   fHistoInvMass=(TH1F*)histoToFit->Clone("fHistoInvMass");
@@ -260,13 +262,14 @@ void InvMassFitter::SetNumberOfParams(){
   if (fTemplates) {
     switch (fAnchorTemplsMode) {
       case TemplAnchorMode::Free:
-        fNParsTempls = fTemplatesFuncts.size();
+        fNParsTempls = fHistoTemplates.size();
         break;
       case TemplAnchorMode::AnchorToFirst:
         fNParsTempls = 1;
         break;
        case TemplAnchorMode::AnchorToSgn:
         fNParsTempls = 0;
+        // fNParsTempls = 1;
         break;
       default:
         std::cerr << "Error: Invalid fAnchorTemplsMode value!" << std::endl;
@@ -423,9 +426,26 @@ Int_t InvMassFitter::MassFitter(Bool_t draw){
     fBkRFunc->SetLineStyle(7);
   }
   if(fTemplates){
-    for(Int_t ipar=0; ipar<fNParsTempls; ipar++){
-      fTemplFunc->SetParameter(ipar,fTotFunc->GetParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl));
-      fTemplFunc->SetParError(ipar,fTotFunc->GetParError(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl));
+    switch (fAnchorTemplsMode) {
+      case TemplAnchorMode::Free:
+        for(Int_t ipar=0; ipar<fNParsTempls; ipar++){
+          fTemplFunc->SetParameter(ipar,fTotFunc->GetParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl));
+          fTemplFunc->SetParError(ipar,fTotFunc->GetParError(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl));
+        }
+        break;
+      case TemplAnchorMode::AnchorToFirst:
+        for(Int_t ipar=0; ipar<fNParsTempls; ipar++){
+          fTemplFunc->SetParameter(ipar,fTotFunc->GetParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl));
+          fTemplFunc->SetParError(ipar,fTotFunc->GetParError(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl));
+        }
+        break;
+      case TemplAnchorMode::AnchorToSgn:
+        cout << "[InvMassFitter] FitFunction4Mass: fAnchorTemplsMode::AnchorToSgn" << endl;
+        fTemplFunc->SetParameter(0,fTotFunc->GetParameter(fNParsBkg));
+        fTemplFunc->SetParError(0,fTotFunc->GetParError(fNParsBkg));
+        break;
+      default:
+        std::cerr << "Error: Invalid fAnchorTemplsMode value!" << std::endl;
     }
     fTemplFunc->SetLineColor(kGreen+1);
   }
@@ -544,28 +564,36 @@ TF1* InvMassFitter::CreateReflectionFunction(TString fname){
 //______________________________________________________________________________
 TF1* InvMassFitter::CreateTemplatesFunction(TString fname){
   /// Creates a function for templates in the D+ inv. mass distribution
-  TF1* functempl =  new TF1(fname.Data(),this,&InvMassFitter::FitFunction4Templ,fMinMass,fMaxMass,fNParsTempls,"InvMassFitter","FitFunction4Templ");
-  if(fNParsTempls == 1 && fTemplatesFuncts.size()>1) {
-    functempl->SetParName(0, "w_templates_anchored");
-    if(this->fMassWeightsLowerLims[0] >= this->fMassWeightsUpperLims[0]) {
-        cout << "Fixing template parameter" << endl;
-      functempl->FixParameter(0,this->fMassInitWeights[0]);
-    } else {
-      functempl->SetParameter(0,this->fMassInitWeights[0]);
-      functempl->SetParLimits(0,this->fMassWeightsLowerLims[0],this->fMassWeightsUpperLims[0]);
-    }
+  int templPars = 0;
+  if (fAnchorTemplsMode == TemplAnchorMode::AnchorToSgn) {
+    templPars = fNParsTempls+1;
+  } else {
+    templPars = fNParsTempls;
   }
-  else {
-    for(int iPar=0; iPar<functempl->GetNpar(); iPar++) {
-      functempl->SetParName(iPar, Form("w_%s",this->fTemplatesFuncts[iPar].GetName()));
-      if(this->fMassWeightsLowerLims[iPar] >= this->fMassWeightsUpperLims[iPar]) {
-        cout << "Fixing template parameter" << endl;
-        functempl->FixParameter(iPar,this->fMassInitWeights[iPar]);
+  TF1* functempl =  new TF1(fname.Data(),this,&InvMassFitter::FitFunction4Templ,fMinMass,fMaxMass,templPars,"InvMassFitter","FitFunction4Templ");
+  if(fAnchorTemplsMode != TemplAnchorMode::AnchorToSgn) {
+    if(fNParsTempls == 1 && fHistoTemplates.size()>1) {
+      functempl->SetParName(0, "w_templates_anchored");
+      if(this->fMassWeightsLowerLims[0] >= this->fMassWeightsUpperLims[0]) {
+          cout << "Fixing template parameter" << endl;
+        functempl->FixParameter(0,this->fMassInitWeights[0]);
       } else {
-        cout << "Setting template parameter to " << this->fMassInitWeights[iPar];
-        cout << " with limits " << this->fMassWeightsLowerLims[iPar] << "-" << this->fMassWeightsUpperLims[iPar] << endl;
-        functempl->SetParameter(iPar,this->fMassInitWeights[iPar]);
-        functempl->SetParLimits(iPar,this->fMassWeightsLowerLims[iPar],this->fMassWeightsUpperLims[iPar]);
+        functempl->SetParameter(0,this->fMassInitWeights[0]);
+        functempl->SetParLimits(0,this->fMassWeightsLowerLims[0],this->fMassWeightsUpperLims[0]);
+      }
+    } 
+    else {
+      for(int iPar=0; iPar<functempl->GetNpar(); iPar++) {
+        functempl->SetParName(iPar, Form("w_%s",this->fTemplatesFuncts[iPar].GetName()));
+        if(this->fMassWeightsLowerLims[iPar] >= this->fMassWeightsUpperLims[iPar]) {
+          cout << "Fixing template parameter" << endl;
+          functempl->FixParameter(iPar,this->fMassInitWeights[iPar]);
+        } else {
+          cout << "Setting template parameter to " << this->fMassInitWeights[iPar];
+          cout << " with limits " << this->fMassWeightsLowerLims[iPar] << "-" << this->fMassWeightsUpperLims[iPar] << endl;
+          functempl->SetParameter(iPar,this->fMassInitWeights[iPar]);
+          functempl->SetParLimits(iPar,this->fMassWeightsLowerLims[iPar],this->fMassWeightsUpperLims[iPar]);
+        }
       }
     }
   }
@@ -708,7 +736,7 @@ TF1* InvMassFitter::CreateTotalFitFunction(TString fname){
     for(Int_t ipar=0; ipar<fNParsTempls; ipar++){
       Double_t parmin,parmax;
       fTemplFunc->GetParLimits(ipar,parmin,parmax);
-      // cout << "ipar: " << ipar << ", parmin: " << parmin << ", parmax: " << parmax << ", par: " << fTemplFunc->GetParameter(ipar) << endl; 
+      cout << "ipar: " << ipar << ", parmin: " << parmin << ", parmax: " << parmax << ", par: " << fTemplFunc->GetParameter(ipar) << endl; 
       ftot->SetParLimits(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,parmin,parmax);
       ftot->SetParameter(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,fTemplFunc->GetParameter(ipar));
       ftot->SetParName(ipar+fNParsBkg+fNParsSig+fNParsSec+fNParsRfl,fTemplFunc->GetParName(ipar));
@@ -719,51 +747,55 @@ TF1* InvMassFitter::CreateTotalFitFunction(TString fname){
 }
 
 //__________________________________________________________________________
-Double_t InvMassFitter::DoubleSidedCBAsymm(double x, double mu, double width, double a1, double n1, double a2, double n2){
-  // cout << "n2: " << n2 << ", a2: " << a2 << endl;
-  double u   = (x-mu)/width;
-  double A1  = TMath::Power(n1/TMath::Abs(a1),n1)*TMath::Exp(-a1*a1/2);
-  double A2  = TMath::Power(n2/TMath::Abs(a2),n2)*TMath::Exp(-a2*a2/2);
-  double B1  = n1/TMath::Abs(a1) - TMath::Abs(a1);
-  double B2  = n2/TMath::Abs(a2) - TMath::Abs(a2);
+Double_t InvMassFitter::DoubleSidedCBAsymm(double x, double mu, double width, double a1, double n1, double a2, double n2) {
+    // Define the variable for the PDF (e.g., mass)
+    RooRealVar mass("mass", "Mass", this->fMinMass, this->fMaxMass);
+    mass.setVal(x);  // Set the mass value to x
 
-  double result(0);
-  if      (u<=-a1) {
-    // left tail
-    result += A1*TMath::Power(B1-u,-n1);
-  }
-  else if (u>-a1 && u<=a2) { 
-    // gaussian core
-    result += TMath::Exp(-u*u/2);
-  }
-  else {
-    // right tail
-    // cout << "Right";
-    result += A2*TMath::Power(B2+u,-n2);
-  }
-  return result;
+    // Define the parameters for the Crystal Ball PDF
+    RooRealVar mean("mean", "Mean", mu);  // Set mean to mu
+    RooRealVar sigma("sigma", "Sigma", width, 0.001, 5.0);  // Set sigma to width
+    RooRealVar alphaLeft("alphaLeft", "AlphaLeft", a1, 0.0001, 10);  // Left tail parameter
+    RooRealVar nLeft("nLeft", "nLeft", n1, 0.0001, 10);  // Left tail exponent
+    RooRealVar alphaRight("alphaRight", "AlphaRight", a2, 0.0001, 10);  // Right tail parameter
+    RooRealVar nRight("nRight", "nRight", n2, 0.0001, 10);  // Right tail exponent
+
+    // Create the RooCrystalBall PDF
+    RooCrystalBall cb("cb", "Double-Sided Crystal Ball PDF", mass, mean, sigma, alphaLeft, nLeft, alphaRight, nRight);
+
+    // Evaluate the PDF at the specified mass value and return the result
+    double pdf_value = cb.getVal(RooArgSet(mass));
+    
+    // // Print the evaluated PDF value for debugging purposes
+    // std::cout << "[DoubleSidedCBAsymm] PDF value at mass = " << x << " with mean = " << mu << " and width = " << width 
+    //           << " is: " << pdf_value << std::endl;
+
+    return pdf_value;
 }
 
 //__________________________________________________________________________
-Double_t InvMassFitter::DoubleSidedCBSymm(double x, double mu, double width, double a, double n){
-  double u  = (x-mu)/width;
-  double A  = TMath::Power(n/TMath::Abs(a),n)*TMath::Exp(-a*a/2);
-  double B  = n/TMath::Abs(a) - TMath::Abs(a);
+Double_t InvMassFitter::DoubleSidedCBSymm(double x, double mu, double width, double a, double n) {
+    // Define the variable for the PDF (e.g., mass)
+    RooRealVar mass("mass", "Mass", this->fMinMass, this->fMaxMass);
+    mass.setVal(x);  // Set the mass value to x
 
-  double result(0);
-  if      (u<-a) {
-    // left tail
-    result += A*TMath::Power(B-u,-n);
-  } 
-  else if (u>-a && u<a) {
-    // gaussian core
-    result += TMath::Exp(-u*u/2);
-  }
-  else {
-    // right tail
-    result += A*TMath::Power(B+u,-n);
-  }
-  return result;
+    // Define the parameters for the Crystal Ball PDF
+    RooRealVar mean("mean", "Mean", mu);  // Set mean to mu
+    RooRealVar sigma("sigma", "Sigma", width, 0.001, 5.0);  // Set sigma to width
+    RooRealVar alphaLeftRight("alphaLeftRight", "AlphaLeftRight", a, 0.0001, 10);  // Left tail parameter
+    RooRealVar nLeftRight("nLeftRight", "nLeftRight", n, 0.0001, 10);  // Left tail exponent
+
+    // Create the RooCrystalBall PDF
+    RooCrystalBall cb("cb", "Double-Sided Crystal Ball PDF", mass, mean, sigma, alphaLeftRight, nLeftRight, alphaLeftRight, nLeftRight);
+
+    // Evaluate the PDF at the specified mass value and return the result
+    double pdf_value = cb.getVal(RooArgSet(mass));
+    
+    // // Print the evaluated PDF value for debugging purposes
+    // std::cout << "[DoubleSidedCBSymm] PDF value at mass = " << x << " with mean = " << mu << " and width = " << width 
+    //           << " is: " << pdf_value << std::endl;
+
+    return pdf_value;
 }
 //________________________________________________________________
 TH1D* InvMassFitter::GetPullDistribution(){
@@ -996,27 +1028,29 @@ Double_t InvMassFitter::FitFunction4SecPeak (Double_t *x, Double_t *par){
 }
 //_________________________________________________________________________
 Double_t InvMassFitter::FitFunction4Templ(Double_t *x, Double_t *par){
+  this->fMassVar.setVal(x[0]);  // Set the mass value to x
   Double_t totalTemplates = 0.;
   switch (fAnchorTemplsMode) {
     case TemplAnchorMode::Free:
-      for(int iFunc=0; iFunc<this->fTemplatesFuncts.size(); iFunc++) {
-        totalTemplates += par[iFunc]*fTemplatesFuncts[iFunc].Eval(x[0]);
+      for(int iFunc=0; iFunc<this->fHistoTemplates.size(); iFunc++) {
+        totalTemplates += par[iFunc]*fHistoTemplates[iFunc]->getVal(RooArgSet(this->fMassVar));
       }
       break;
     case TemplAnchorMode::AnchorToFirst:
-      for(int iFunc=0; iFunc<this->fTemplatesFuncts.size(); iFunc++) {
-        totalTemplates += par[0]*fRelWeights[iFunc]*fTemplatesFuncts[iFunc].Eval(x[0]);
+      for(int iFunc=0; iFunc<this->fHistoTemplates.size(); iFunc++) {
+        totalTemplates += par[0]*fRelWeights[iFunc]*fHistoTemplates[iFunc]->getVal(RooArgSet(this->fMassVar));
       }
       break;
     case TemplAnchorMode::AnchorToSgn:
-      for(int iFunc=0; iFunc<this->fTemplatesFuncts.size(); iFunc++) {
-        // cout << "[InvMassFitter] fRelWeights[" << iFunc << "]: " << fRelWeights[iFunc] << ", par[0]: " << par[0] << ", eval templ: " << fTemplatesFuncts[iFunc].Eval(x[0]) << ", x[0]: " << x[0] << ", " << par[0]*fRelWeights[iFunc]*fTemplatesFuncts[iFunc].Eval(x[0]) << endl;
-        totalTemplates += par[0]*fRelWeights[iFunc]*fTemplatesFuncts[iFunc].Eval(x[0]);
+      for(int iFunc=0; iFunc<this->fHistoTemplates.size(); iFunc++) {
+        // cout << "[InvMassFitter] fRelWeights[" << iFunc << "]: " << fRelWeights[iFunc] << ", par[0]: " << par[0] << ", this->fMassVar.getVal(): " << this->fMassVar.getVal() << ", eval templ: " << fHistoTemplates[iFunc]->getVal(RooArgSet(this->fMassVar)) << ", x[0]: " << x[0] << ", " << par[0]*fRelWeights[iFunc]*fHistoTemplates[iFunc]->getVal(RooArgSet(this->fMassVar)) << endl;
+        totalTemplates += par[0]*fRelWeights[iFunc]*fHistoTemplates[iFunc]->getVal(RooArgSet(this->fMassVar));
       }
       break;
     default:
       std::cerr << "Error: Invalid fAnchorTemplsMode value!" << std::endl;
   }
+  // cout << "totalTemplates: " << totalTemplates << " , x[0]: " << x[0] << endl;
   return totalTemplates;
 }
 //_________________________________________________________________________
@@ -1040,7 +1074,9 @@ Double_t InvMassFitter::FitFunction4Mass(Double_t *x, Double_t *par){
         templ=FitFunction4Templ(x,&par[fNParsBkg+fNParsSig+fNParsSec+fNParsRfl]);
         break;
       case TemplAnchorMode::AnchorToSgn:
+        // cout << "[InvMassFitter] FitFunction4Mass: fAnchorTemplsMode::AnchorToSgn" << endl;
         templ=FitFunction4Templ(x,&par[fNParsBkg]);
+        // cout << "templ: " << templ << " ";
         break;
       default:
         std::cerr << "Error: Invalid fAnchorTemplsMode value!" << std::endl;

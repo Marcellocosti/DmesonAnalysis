@@ -48,6 +48,129 @@ def cook_thnsparse(thnsparse_list, ptmins, ptmaxs, axestokeep):
                 thnsparses[iPt].Add(thn_proj)
     return thnsparses
 
+def pre_process_mc(config, ptmins, ptmaxs, centmin, centmax, axestokeep, outputDir):
+    
+    # Load the ThnSparse
+    _, thnsparse_reco_list, thnsparse_gen_list, sparse_axes = get_sparses(config, False, True, True, config['eff_filename'])
+
+    os.makedirs(f'{outputDir}/pre/AnResMc', exist_ok=True)
+    out_file = TFile(f'{outputDir}/pre/AnResMc/Projections_{centmin}_{centmax}_{int(ptmins[0])*10}_{int(ptmaxs[-1])*10}.root', 'recreate')
+
+    def process_pt_bin(ptmin, ptmax, centmin, centmax, bkg_max_cut, thnsparse_reco_list, thnsparse_gen_list, axestokeep, outputDir):
+        print(f'Processing pT bin {ptmin} - {ptmax}, cent {centmin}-{centmax}')
+        for iThn in range(len(thnsparse_reco_list['RecoPrompt'])):
+            print(f"\n\n\n")
+            print(f"    Processing sparse {iThn}")
+            cloned_sparse_reco_prompt = thnsparse_reco_list['RecoPrompt'][iThn].Clone()
+            cloned_sparse_reco_prompt.GetAxis(sparse_axes['RecoPrompt']['Pt']).SetRangeUser(ptmin, ptmax)
+            cloned_sparse_reco_prompt.GetAxis(sparse_axes['RecoPrompt']['cent']).SetRangeUser(centmin, centmax)
+            cloned_sparse_reco_prompt.GetAxis(sparse_axes['RecoPrompt']['score_bkg']).SetRangeUser(0, bkg_max_cut)
+            thn_proj_reco_prompt = cloned_sparse_reco_prompt.Projection(len(axestokeep['Reco']), array.array('i', [sparse_axes['RecoPrompt'][axtokeep] for axtokeep in axestokeep['Reco']]), 'O')
+            thn_proj_reco_prompt.SetName(cloned_sparse_reco_prompt.GetName())
+            if config.get('RebinSparse'):
+                rebin_factors = [config['RebinSparse']['Reco'][axtokeep] for axtokeep in axestokeep['Reco']]
+                thn_proj_reco_prompt = thn_proj_reco_prompt.Rebin(array.array('i', rebin_factors))
+
+            cloned_sparse_reco_FD = thnsparse_reco_list['RecoFD'][iThn].Clone()
+            print(f"cloned_sparse_reco_FD.GetName(): {cloned_sparse_reco_FD.GetName()}")
+            print(f"sparse_axes['RecoFD']['Pt']: {sparse_axes['RecoFD']['Pt']}")
+            print(f"sparse_axes['RecoFD']['cent']: {sparse_axes['RecoFD']['cent']}")
+            print(f"sparse_axes['RecoFD']['score_bkg']: {sparse_axes['RecoFD']['score_bkg']}")
+            cloned_sparse_reco_FD.GetAxis(sparse_axes['RecoFD']['Pt']).SetRangeUser(ptmin, ptmax)
+            cloned_sparse_reco_FD.GetAxis(sparse_axes['RecoFD']['cent']).SetRangeUser(centmin, centmax)
+            cloned_sparse_reco_FD.GetAxis(sparse_axes['RecoFD']['score_bkg']).SetRangeUser(0, bkg_max_cut)
+            print(f"RecoFD proj: {[sparse_axes['RecoFD'][axtokeep] for axtokeep in axestokeep['Reco']]}")
+            thn_proj_reco_FD = cloned_sparse_reco_FD.Projection(len(axestokeep['Reco']), array.array('i', [sparse_axes['RecoFD'][axtokeep] for axtokeep in axestokeep['Reco']]), 'O')
+            thn_proj_reco_FD.SetName(cloned_sparse_reco_FD.GetName())
+            if config.get('RebinSparse'):
+                rebin_factors = [config['RebinSparse']['Reco'][axtokeep] for axtokeep in axestokeep['Reco']]
+                thn_proj_reco_FD = thn_proj_reco_FD.Rebin(array.array('i', rebin_factors))
+
+            cloned_sparse_gen_prompt = thnsparse_gen_list['GenPrompt'][iThn].Clone()
+            cloned_sparse_gen_prompt.GetAxis(sparse_axes['GenPrompt']['Pt']).SetRangeUser(ptmin, ptmax)
+            cloned_sparse_gen_prompt.GetAxis(sparse_axes['GenPrompt']['cent']).SetRangeUser(centmin, centmax)
+            thn_proj_gen_prompt = cloned_sparse_gen_prompt.Projection(len(axestokeep['Gen']), array.array('i', [sparse_axes['GenPrompt'][axtokeep] for axtokeep in axestokeep['Gen']]), 'O')
+            thn_proj_gen_prompt.SetName(cloned_sparse_gen_prompt.GetName())
+            if config.get('RebinSparse'):
+                rebin_factors = [config['RebinSparse']['Gen'][axtokeep] for axtokeep in axestokeep['Gen']]
+                thn_proj_gen_prompt = thn_proj_gen_prompt.Rebin(array.array('i', rebin_factors))
+
+            cloned_sparse_gen_FD = thnsparse_gen_list['GenFD'][iThn].Clone()
+            cloned_sparse_gen_FD.GetAxis(sparse_axes['GenFD']['Pt']).SetRangeUser(ptmin, ptmax)
+            cloned_sparse_gen_FD.GetAxis(sparse_axes['GenFD']['cent']).SetRangeUser(centmin, centmax)
+            thn_proj_gen_FD = cloned_sparse_gen_FD.Projection(len(axestokeep['Gen']), array.array('i', [sparse_axes['GenFD'][axtokeep] for axtokeep in axestokeep['Gen']]), 'O')
+            thn_proj_gen_FD.SetName(cloned_sparse_gen_FD.GetName())
+            if config.get('RebinSparse'):
+                rebin_factors = [config['RebinSparse']['Gen'][axtokeep] for axtokeep in axestokeep['Gen']]
+                thn_proj_gen_FD = thn_proj_gen_FD.Rebin(array.array('i', rebin_factors))
+    
+            if iThn == 0:
+                processed_sparse_reco_FD = thn_proj_reco_FD.Clone()
+                processed_sparse_reco_prompt = thn_proj_reco_prompt.Clone()
+                processed_sparse_gen_prompt = thn_proj_gen_prompt.Clone()
+                processed_sparse_gen_FD = thn_proj_gen_FD.Clone()
+            else:
+                processed_sparse_reco_prompt.Add(thn_proj_reco_prompt)
+                processed_sparse_reco_FD.Add(thn_proj_reco_FD)
+                processed_sparse_gen_prompt.Add(thn_proj_gen_prompt)
+                processed_sparse_gen_FD.Add(thn_proj_gen_FD)
+        
+        
+        outFile = ROOT.TFile(f'{outputDir}/pre/AnResMc/AnalysisResults_pt_{int(ptmin*10)}_{int(ptmax*10)}.root', 'recreate')
+        outFile.mkdir('hf-task-dplus')
+        outFile.cd('hf-task-dplus')
+        processed_sparse_reco_prompt.Write('hSparseMassPrompt')
+        processed_sparse_reco_FD.Write('hSparseMassFD')
+        processed_sparse_gen_prompt.Write('hSparseGenPrompt')
+        processed_sparse_gen_FD.Write('hSparseGenFD')
+        outFile.Close()
+
+        out_file.mkdir(f'McEff_pt_{ptmin}_{ptmax}')
+        out_file.cd(f'McEff_pt_{ptmin}_{ptmax}')
+        
+        out_file.mkdir(f'McEff_pt_{ptmin}_{ptmax}/RecoPrompt')
+        out_file.cd(f'McEff_pt_{ptmin}_{ptmax}/RecoPrompt')
+        for idim in range(processed_sparse_reco_prompt.GetNdimensions()):
+            histo = processed_sparse_reco_prompt.Projection(idim)
+            histo.SetName(processed_sparse_reco_prompt.GetAxis(idim).GetName())
+            histo.SetTitle(processed_sparse_reco_prompt.GetAxis(idim).GetTitle())
+            histo.Write()
+        out_file.mkdir(f'McEff_pt_{ptmin}_{ptmax}/RecoFD')
+        out_file.cd(f'McEff_pt_{ptmin}_{ptmax}/RecoFD')
+        for idim in range(processed_sparse_reco_FD.GetNdimensions()):
+            histo = processed_sparse_reco_FD.Projection(idim)
+            histo.SetName(processed_sparse_reco_FD.GetAxis(idim).GetName())
+            histo.SetTitle(processed_sparse_reco_FD.GetAxis(idim).GetTitle())
+            histo.Write()
+        out_file.mkdir(f'McEff_pt_{ptmin}_{ptmax}/GenPrompt')
+        out_file.cd(f'McEff_pt_{ptmin}_{ptmax}/GenPrompt')
+        for idim in range(processed_sparse_gen_prompt.GetNdimensions()):
+            histo = processed_sparse_gen_prompt.Projection(idim)
+            histo.SetName(processed_sparse_gen_prompt.GetAxis(idim).GetName())
+            histo.SetTitle(processed_sparse_gen_prompt.GetAxis(idim).GetTitle())
+            histo.Write()
+        out_file.mkdir(f'McEff_pt_{ptmin}_{ptmax}/GenFD')
+        out_file.cd(f'McEff_pt_{ptmin}_{ptmax}/GenFD')
+        for idim in range(processed_sparse_gen_FD.GetNdimensions()):
+            histo = processed_sparse_gen_FD.Projection(idim)
+            histo.SetName(processed_sparse_gen_FD.GetAxis(idim).GetName())
+            histo.SetTitle(processed_sparse_gen_FD.GetAxis(idim).GetTitle())
+            histo.Write()
+        
+        del processed_sparse_reco_prompt
+        del processed_sparse_reco_FD
+        del processed_sparse_gen_prompt
+        del processed_sparse_gen_FD
+        
+        print(f'Finished processing pT bin {ptmin} - {ptmax}')
+
+    bkg_maxs = config['bkg_cuts']
+    max_workers = 12 # hyperparameter
+    with concurrent.futures.ThreadPoolExecutor(max_workers) as executor:
+        tasks = [executor.submit(process_pt_bin, ptmin, ptmax, centmin, centmax, bkg_maxs[iPt], thnsparse_reco_list, thnsparse_gen_list, axestokeep, outputDir) for iPt, (ptmin, ptmax) in enumerate(zip(ptmins, ptmaxs))]
+        for task in concurrent.futures.as_completed(tasks):
+            task.result()
+
 def pre_process(config, ptmins, ptmaxs, centmin, centmax, axestokeep, outputDir):
     
     # Load the ThnSparse
@@ -335,13 +458,14 @@ if __name__ == "__main__":
                         help='output directory for projected .root files')
     parser.add_argument('--pre', action='store_true', help='pre-process the AnRes.root')
     parser.add_argument('--pre_ep', action='store_true', help='pre-process the AnRes.root when running the ep method')
+    parser.add_argument('--pre_mc', action='store_true', help='pre-process the AnRes.root for MC eff')
     parser.add_argument('--sigma', action='store_true', help='get the sigma')
     parser.add_argument('--pre_sys', action='store_true', help='pre-process the AnRes.root for systematic')
     parser.add_argument('--skip_projection', '-sp', action='store_true', help='skip the projection')
     parser.add_argument("--suffix", "-s", metavar="text", default="", help="suffix for output files")
     args = parser.parse_args()
 
-    if not args.pre and not args.pre_ep and not args.sigma and not args.pre_sys:
+    if not args.pre and not args.pre_ep and not args.sigma and not args.pre_sys and not args.pre_mc:
         print('Please specify the action to perform.')
         sys.exit(1)
 
@@ -359,6 +483,9 @@ if __name__ == "__main__":
     
     if args.pre:
         pre_process(config, ptmins, ptmaxs, centMin, centMax, axestokeep, outputDir)
+    
+    if args.pre_mc:
+        pre_process_mc(config, ptmins, ptmaxs, centMin, centMax, axestokeep, outputDir)
     
     if args.pre_ep:
         pre_process_sparses_ep(config, centMin, centMax, axestokeep, outputDir)

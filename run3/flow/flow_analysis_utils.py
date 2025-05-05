@@ -332,10 +332,14 @@ def get_centrality_bins(centrality):
     '''
     if centrality == 'k05':
         return '0_5', [0, 5]
+    if centrality == 'k510':
+        return '5_10', [5, 10]
     if centrality == 'k010':
         return '0_10', [0, 10]
     if centrality == 'k1015':
-        return '0_15', [10, 15]
+        return '10_15', [10, 15]
+    if centrality == 'k1520':
+        return '15_20', [15, 20]
     if centrality == 'k1020':
         return '10_20', [10, 20]
     if centrality == 'k020':
@@ -354,6 +358,8 @@ def get_centrality_bins(centrality):
         return '40_60', [40, 60]
     elif centrality == 'k4080':
         return '40_80', [40, 80]
+    elif centrality == 'k5060':
+        return '50_60', [50, 60]
     elif centrality == 'k5080':
         return '50_80', [50, 80]
     elif centrality == 'k6070':
@@ -548,7 +554,10 @@ def get_vnfitter_results(vnFitter, secPeak, useRefl, useTempl, DrawVnComps):
     
     if secPeak:
         vn_results['fVnCompsFuncts']['vnSecPeak'] = vnComps[2]
-    vn_results['fMassTemplFuncts'] = vnFitter.GetMassTemplFuncts()
+    vn_results['fMassTemplFuncts'] = [] 
+    if useTempl:
+        vn_results['fMassTemplTotFunc'] = vnFitter.GetMassTemplFitFunc()
+        vn_results['fMassTemplFuncts'] = vnFitter.GetMassTemplFuncts()
     if DrawVnComps:
         vn_results['fVnCompsFuncts'] = {}
         vnComps = vnFitter.GetVnCompsFuncts()

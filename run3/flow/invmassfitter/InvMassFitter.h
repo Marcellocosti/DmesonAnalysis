@@ -101,13 +101,80 @@ class InvMassFitter : public TNamed {
     fFixRflOverSig=kTRUE;
   }
   void SetSmoothReflectionTemplate(Bool_t opt){fSmoothRfl=opt;}
-  void SetTemplates(std::vector<TF1> templates, std::vector<Double_t> initweights,
-                    std::vector<Double_t> minweights, std::vector<Double_t> maxweights,
-                    int anchormode = TemplAnchorMode::Free, std::vector<Double_t> relcombweights = {}) {
-    fTemplatesFuncts=templates;
+  void SetTemplates(int anchormode, std::vector<Double_t> relcombweights, std::vector<std::string> templsnames, std::vector<const TH1*> histotempl,
+                    std::vector<Double_t> initweights, std::vector<Double_t> minweights, std::vector<Double_t> maxweights) {
+    
+    // fTemplates=kTRUE;
+    TFile* file = new TFile("templates_from_roofit_massfitter.root", "RECREATE");
+
+    for (int iTempl = 0; iTempl < histotempl.size(); ++iTempl) {
+      file->mkdir(Form("Template_%i", iTempl));
+      file->cd(Form("Template_%i", iTempl));
+      
+      // Set fMassVar range and binning to match histogram
+      Double_t xmin = histotempl[iTempl]->GetXaxis()->GetXmin();
+      Double_t xmax = histotempl[iTempl]->GetXaxis()->GetXmax();
+      Int_t nbins = histotempl[iTempl]->GetNbinsX();
+      
+      this->fMassVar.setRange("fullRange", xmin, xmax);
+      this->fMassVar.setBins(nbins);
+      this->fMassVar.setMin(xmin);
+      this->fMassVar.setMax(xmax);
+      
+      // Clone and normalize histogram to unit area (PDF style)
+      TH1D* histPdf = (TH1D*)histotempl[iTempl]->Clone("histPdf");
+      histPdf->Scale(1.0 / histPdf->Integral("width"));
+      
+      // Use the normalized histogram for RooDataHist
+      RooDataHist* data_hist = new RooDataHist(Form("templ_%i", iTempl), Form("templ_%i", iTempl),
+      RooArgList(this->fMassVar), histPdf);
+      
+      RooHistPdf* pdf = new RooHistPdf(Form("templ_%i_pdf", iTempl), Form("templ_%i_pdf", iTempl),
+      RooArgSet(this->fMassVar), *data_hist);
+      fHistoTemplates.push_back(pdf);
+
+      // Check normalization of the RooHistPdf
+      RooAbsReal* integral = pdf->createIntegral(RooArgSet(this->fMassVar), RooFit::NormSet(this->fMassVar));
+      std::cout << "PDF integral over fMassVar (templ " << iTempl << "): " << integral->getVal() << std::endl;
+
+      // Plot the PDF
+      RooPlot* frame = this->fMassVar.frame();
+      frame->SetName(Form("frame_%i", iTempl));
+      pdf->plotOn(frame);
+
+      TCanvas* c = new TCanvas(Form("canvas_%i", iTempl), Form("canvas_%i", iTempl), 800, 600);
+      frame->Draw();
+
+      // Save original and normalized histograms
+      histotempl[iTempl]->Write();
+      histPdf->Write();  // Proper PDF histogram
+
+      // Optional: Save histogram with just normalized counts
+      TH1D* histNormCounts = (TH1D*)histotempl[iTempl]->Clone("histNormCounts");
+      histNormCounts->Scale(1.0 / histNormCounts->Integral());
+      histNormCounts->Write();
+
+      // Save canvas and RooFit objects
+      c->Write();
+      data_hist->Write();
+
+      double xval = 1.751;  // example value in the domain of fMassVar
+      this->fMassVar.setVal(xval);  // set the value to evaluate
+
+      double pdfVal = pdf->getVal(RooArgSet(this->fMassVar));
+      std::cout << "PDF value at mass = " << xval << " is: " << pdfVal << std::endl;
+    }
+    
+    file->Close();
+    std::cout << "SetTemplatesHisto VnVsMassFitter ended" << std::endl;
+                  
     fMassInitWeights=initweights;
     fMassWeightsLowerLims=minweights;
     fMassWeightsUpperLims=maxweights;
+    for(int iFunc=0; iFunc<fHistoTemplates.size(); iFunc++) {
+      fHistoTemplates[iFunc]->SetName(Form("TemplFlag_%s", templsnames[iFunc].c_str()));
+      fHistoTemplates[iFunc]->SetTitle(Form("TemplFlag_%s", templsnames[iFunc].c_str()));
+    }
     fTemplates=kTRUE;
     fRelWeights=relcombweights;
     fAnchorTemplsMode=static_cast<TemplAnchorMode>(anchormode);
@@ -131,7 +198,15 @@ class InvMassFitter : public TNamed {
   Double_t GetSigma()const {return fSigmaSgn;}
   Double_t GetSigmaUncertainty()const { return fSigmaSgnErr;}
   Double_t GetTemplOverSig()const{
-    if(fTemplates) return fTemplFunc->Integral(this->fMinMass,this->fMaxMass)/fSigFunc->Integral(this->fMinMass,this->fMaxMass);
+    cout << "GetTemplOverSig" << endl;
+    cout << "fTemplates: " << fTemplates << endl;
+    if(fTemplates) {
+      cout << "fTemplFunc->Eval(1.85): " << fTemplFunc->Eval(1.85) << endl;
+      Double_t integral = fTemplFunc->Integral(this->fMinMass,this->fMaxMass);
+      cout << "integral: " << integral << endl;
+      cout << "fSigFunc: " << fSigFunc->Integral(this->fMinMass,this->fMaxMass) << endl;
+      return integral/fSigFunc->Integral(this->fMinMass,this->fMaxMass);
+    }
     else return 0;
   }
   Double_t GetReflOverSig()const{
@@ -150,7 +225,10 @@ class InvMassFitter : public TNamed {
   TF1*     GetMassFunc(){return fTotFunc;}
   TF1*     GetSecondPeakFunc(){return fSecFunc;}
   TF1*     GetReflFunc(){return fRflFunc;}
-  TF1*     GetTemplFunc(){return fTemplFunc;}
+  TF1*     GetTemplFunc(){
+    cout << "GetTemplFunc" << endl;
+    return fTemplFunc;
+  }
   Double_t GetChiSquare() const{
     if(fTotFunc) return fTotFunc->GetChisquare();
     else return -1;
@@ -280,7 +358,9 @@ class InvMassFitter : public TNamed {
   std::vector<Double_t> fMassWeightsLowerLims; /// lower limit of the templates' weights
   std::vector<Double_t> fMassInitWeights;      /// init value of the templates' weights
   std::vector<std::tuple<TString, double, double, double>> fInitFuncPars;   /// Init pars for fit function
-  
+  RooRealVar fMassVar;
+  std::vector<RooHistPdf*> fHistoTemplates;  /// vector to store RooHistPdf to be added as templates to the fit function
+
 
   /// \cond CLASSIMP     
   ClassDef(InvMassFitter,9); /// class for invariant mass fit

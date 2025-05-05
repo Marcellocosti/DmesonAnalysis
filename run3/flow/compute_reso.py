@@ -1,4 +1,5 @@
 import sys
+import os
 import argparse
 import ROOT
 from flow_analysis_utils import get_resolution, get_centrality_bins, getListOfHisots
@@ -44,7 +45,10 @@ def compute_reso(an_res_file, vn_method,
         ytitle = 'cos(2(#Psi^{A}-#Psi^{B}))'
     else:
         sys.exit('\033[91mFATAL: Invalid vn_method. Only sp, ep, deltaphi implemented. Exit!\033[0m')
+    
+    os.makedirs(f"{outputdir}", exist_ok=True)
     outfile_name = f'{outputdir}reso{vn_method}{suffix}.root'
+    print(f"outfile_name: {outfile_name}")
     outfile = ROOT.TFile(outfile_name, 'RECREATE')
 
     # loop over all possible combinations of detectors
@@ -120,7 +124,7 @@ def compute_reso(an_res_file, vn_method,
         histo_reso_deltacent.Write()
         outfile.cd('..')
 
-    input('Resolutions computed. Press any key to continue')
+    # input('Resolutions computed. Press any key to continue')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments")

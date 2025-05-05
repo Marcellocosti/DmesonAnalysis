@@ -298,7 +298,8 @@ for iFile, (inFileName, objName, objType, scale, lambdaParam, normalize, color, 
             print('WARNING: uncertainty comparison for TGraphs not implemented. Switching off')
             doCompareUnc = False
 
-    leg.AddEntry(hToCompare[iFile], legNames[iFile], legOpt[iFile])
+    if iFile < len(inputCfg['options']['legend']['titles']):
+        leg.AddEntry(hToCompare[iFile], legNames[iFile], legOpt[iFile])
 
 ratios, RMS, shift = [], [], []
 if doRatio and displayRMS:

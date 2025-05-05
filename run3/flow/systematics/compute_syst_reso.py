@@ -119,24 +119,28 @@ def compute_syst_reso(config_modify, config_def, rypathsyst,  cent, reso_file, o
     sum_weight = {}
     hreso_arithm_mean = 0
     counter = 0
+
+    for ipt, (ptmin, ptmax) in enumerate(zip(ptmins[:-1], ptmaxs[:-1])):
+        print(f'Pt interval {ptmin}-{ptmax}')
+        pt_label = f"ptmin{ptmin}_ptmax{ptmax}"
+
+        sum_weight[pt_label] = 0
+        hreso_weighted_mean[pt_label] = 0
+        hreso_weighted_mean_err[pt_label] = 0
+
     for icent in range(1, hist_reso_def.GetNbinsX() + 1):
         reso = hist_reso_def.GetBinContent(icent)
         if reso == 0:
-            continue
+            sys.exit('FATAL: Resolution equal to 0.')
         counter += 1
         bincent = hist_reso_def.GetBinCenter(icent)
 
-        # Arithmetic mean
+        # Arithmetic mean (computed as a cross check but not used in the syst.)
         hreso_arithm_mean += reso
 
         # Loop over pt bins
-        for _, (ptmin, ptmax) in enumerate(zip(ptmins[:-1], ptmaxs[:-1])):
+        for ipt, (ptmin, ptmax) in enumerate(zip(ptmins[:-1], ptmaxs[:-1])):
             pt_label = f"ptmin{ptmin}_ptmax{ptmax}"
-
-            if icent == 2:
-                sum_weight[pt_label] = 0
-                hreso_weighted_mean[pt_label] = 0
-                hreso_weighted_mean_err[pt_label] = 0
 
             binindexry = hist_ry_vs_cent[pt_label].FindBin(bincent)
             weigth = hist_ry_vs_cent[pt_label].GetBinContent(binindexry)
@@ -144,6 +148,7 @@ def compute_syst_reso(config_modify, config_def, rypathsyst,  cent, reso_file, o
 
             hreso_weighted_mean[pt_label] += reso * weigth
             hreso_weighted_mean_err[pt_label] += (reso * weigth)**2
+            print(f'INFO: Centrality {bincent}%, ptmin {ptmin}, ptmax {ptmax}, weight {weigth}, resolution {reso} --> {hreso_weighted_mean[pt_label]}')
 
     for _, (ptmin, ptmax) in enumerate(zip(ptmins[:-1], ptmaxs[:-1])):
         pt_label = f"ptmin{ptmin}_ptmax{ptmax}"
@@ -175,7 +180,7 @@ def compute_syst_reso(config_modify, config_def, rypathsyst,  cent, reso_file, o
     greso_def_deltacent.GetYaxis().SetTitle('#it{R}_{2}{SP} / #it{R}_{2}{SP}^{ref.}')
     greso_def_deltacent.GetYaxis().SetTitleOffset(1.9)
     greso_def_deltacent.GetYaxis().SetDecimals()
-    greso_def_deltacent.GetYaxis().SetRangeUser(0.95, 1.08)
+    greso_def_deltacent.GetYaxis().SetRangeUser(0.95, greso_def_deltacent.GetY()[0] * 1.2)
     greso_def_deltacent.Draw('')
     leg.AddEntry(greso_def_deltacent, 'Reference resolution', 'lp')
     print(f'INFO: Reference resolution: {hist_reso_def_deltacent.GetBinContent(1)}')
@@ -188,8 +193,9 @@ def compute_syst_reso(config_modify, config_def, rypathsyst,  cent, reso_file, o
     greso_ari.SetMarkerStyle(20)
     greso_ari.SetMarkerSize(1)
     greso_ari.SetLineWidth(2)
-    greso_ari.Draw('same p')
-    leg.AddEntry(greso_ari, 'Arithmetic mean resolution', 'lp')
+    # Not plotted to avoid confusion
+    #greso_ari.Draw('same p')
+    #leg.AddEntry(greso_ari, 'Arithmetic mean resolution', 'lp')
     gist_reso_weight = {}
     print(f'INFO: Arithmetic mean resolution: {hreso_arithm_mean}')
 
@@ -226,7 +232,9 @@ def compute_syst_reso(config_modify, config_def, rypathsyst,  cent, reso_file, o
     print(f'INFO: Output saved in {outputfile}')
 
     canv.SaveAs(f'{outputdir}/SystReso_centweights.pdf')
+    canv.SaveAs(f'{outputdir}/SystReso_centweights.png')
     canvsyst.SaveAs(f'{outputdir}/SystReso_vs_cent.pdf')
+    canvsyst.SaveAs(f'{outputdir}/SystReso_vs_cent.png')
 
 
 if __name__ == "__main__":
