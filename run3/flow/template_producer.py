@@ -222,7 +222,10 @@ def extract_template_weights(config):
                     if score_bkg:
                         df_sel = df_sel.query(f"fMlScore0 < {score_bkg['max'][iPt]}")
                     if score_fd:
-                        df_sel = df_sel.query(f"{score_fd['min'][iPt]} <= fMlScore1 < {score_fd['max'][iPt]}")
+                        if config['minimisation']['correlated']:
+                            df_sel = df_sel.query(f"fMlScore1 >= {score_fd['min'][iPt]}")
+                        else:
+                            df_sel = df_sel.query(f"{score_fd['min'][iPt]} <= fMlScore1 < {score_fd['max'][iPt]}")
 
                 n_reco = len(df_sel)
                 histos[name]["yield"].SetBinContent(iPt+1, n_reco)

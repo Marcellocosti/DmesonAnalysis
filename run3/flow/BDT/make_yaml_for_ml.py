@@ -11,113 +11,94 @@ import sys
 script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script's directory
 sys.path.append(os.path.abspath(os.path.join(script_dir, '..')))  # Append parent directory
 
-from flow_analysis_utils import get_cut_sets_config
-
-def make_combination(ptmins, ptmaxs, nCutSets, sig_cut_lower_file, 
-                     sig_cut_upper_file, bkg_cut_lower_file, bkg_cut_upper_file, 
-                     fit_range_min, fit_range_max):
+def pad_to_length(list, target_len):
     '''
-    Create a dictionary with the combination of cuts for each cutset
-
-    Parameters:
-    pt_axis: int
-        axis number for the pt
-    bkg_axis: int
-        axis number for the bkg output
-    sig_axis: int
-        axis number for the signal output
-    ptmins: list
-        list of lower pt edges
-    ptmaxs: list
-        list of upper pt edges
-    sig_cut_file: dict
-        dictionary with the signal cut for each cutset
-    bkg_cut_file: dict
-        dictionary with the background cut for each cutset
-
-    Returns:
-    combinations: dict
-        dictionary with the combination of cuts for each cutset
+        Function to pad a list to a target length
+        Args:
+            lst (list): list to be padded
+            target_len (int): target length of the list
+        Returns:
+            list: padded list
     '''
-    combinations = {}
-    for iFile in range(nCutSets):
-        combinations[iFile] = {
-            'icutset': iFile,
-            'cutvars': {
-                'Pt': {
-                    'min': [i for i in ptmins],
-                    'max': [j for j in ptmaxs],
-                    'name': 'pt_cand'
-                },
-                'score_bkg': {
-                    'min': [float(i) for i in bkg_cut_lower_file[iFile]],
-                    'max': [float(j) for j in bkg_cut_upper_file[iFile]],
-                    'name': 'score_bkg'
-                },
-                'score_FD': {
-                    'min': [float(i) for i in sig_cut_lower_file[iFile]],
-                    'max': [float(j) for j in sig_cut_upper_file[iFile]],
-                    'name': 'score_FD'
-                }
-            },
-            'fitrangemin': fit_range_min, 
-            'fitrangemax': fit_range_max, 
-        }
-    return combinations
+    return list + [list[-1]] * (target_len - len(list)) if len(list) < target_len else list
 
 def make_yaml(flow_config, outputdir, suffix):
+    '''
+        Function to create a yaml file with a set of cuts for ML
+        Args:
+            flow_config (str): path to the flow config file
+            outputdir (str): path to the output directory
+            suffix (str): suffix for the output files
+    '''
     with open(flow_config, 'r') as f:
-        input = yaml.safe_load(f)
+        cfg = yaml.safe_load(f)
 
-    os.makedirs(outputdir, exist_ok=True)
+    # os.makedirs(outputdir, exist_ok=True)
+    ptmins = cfg['ptmins']
+    ptmaxs = cfg['ptmaxs']
+    massmins = cfg['MassMin']
+    massmaxs = cfg['MassMax']
+    if cfg.get('select_bin'):
+        print(f"Using pt binning from the cfg file")
+        npt_bins = 1
+        ptmins = [ptmins[cfg['select_bin']-1]]
+        ptmaxs = [ptmaxs[cfg['select_bin']-1]]
+        massmins = [massmins[cfg['select_bin']-1]]
+        massmaxs = [massmaxs[cfg['select_bin']-1]]
+    else:
+        if len(ptmins) != len(ptmaxs):
+            raise ValueError(f'''The number of pt bins({len(ptmins)}, {len(ptmaxs)} are not the same''')
+        npt_bins = len(ptmins)
+    ptBinIdxs = [cfg['ptmins'].index(pt) for pt in ptmins]
 
-    # load the variable from the input config
+    if cfg['minimisation'].get('correlated'):
+        sig_cut = cfg['cut_variation']['corr_bdt_cut']['sig']
+        sig_cuts_lower = [list(np.arange(sig_cut['min'][iPt], sig_cut['max'][iPt], sig_cut['step'][iPt])) for iPt in ptBinIdxs]
+        sig_cuts_upper = [[1.0] * len(sig_low_edge) for sig_low_edge in sig_cuts_lower]
+        nCutSets = [len(sig_low_edge) for sig_low_edge in sig_cuts_lower]
+        bkg_cuts_upper = [[cfg['cut_variation']['corr_bdt_cut']['bkg_max'][idx]] * nCutSets[iPt] for iPt, idx in enumerate(ptBinIdxs)]
+    else:
+        sig_cut = cfg['cut_variation']['uncorr_bdt_cut']['sig']
+        sig_cuts_lower = [sig_cut[iPt]['min'] for iPt in ptBinIdxs]
+        sig_cuts_upper = [sig_cut[iPt]['max'] for iPt in ptBinIdxs]
+        nCutSets = [len(sig_cuts_lower[iPt]) for iPt in ptBinIdxs]
+        bkg_cuts_upper = [cfg['cut_variation']['uncorr_bdt_cut']['bkg_max'][iPt] for iPt in ptBinIdxs]
 
-    # pt
-    ptmins = input['ptmins']
-    ptmaxs = input['ptmaxs']
+    for iPt in range(npt_bins):
+        assert len(sig_cuts_lower[iPt]) == len(sig_cuts_upper[iPt]) == len(bkg_cuts_upper[iPt]) == nCutSets[iPt], (
+            f"Mismatch in lengths for pt bin {iPt}: \n"
+            f"sig_low:{len(sig_cuts_lower[iPt])}, \n"
+            f"sig_up: {len(sig_cuts_upper[iPt])}, \n"
+            f"bkg_up: {len(bkg_cuts_upper[iPt])}, \n"
+            f"nCutSets: {nCutSets[iPt]}"
+        )
 
-    ## safety check
-    if len(ptmins) != len(ptmaxs):
-        raise ValueError(f'''The number of pt bins({len(ptmins)}, {len(ptmaxs)} are not the same''')
+    maxCutSets = max(nCutSets)
 
-    CutSets, sig_cut_lower, sig_cut_upper, bkg_cut_lower, bkg_cut_upper = get_cut_sets_config(flow_config)
-    
-    maxCutSets = max(CutSets)
-    sig_cut_lower_file, sig_cut_upper_file, bkg_cut_lower_file, bkg_cut_upper_file = {}, {}, {}, {}
-    for iCut in range(maxCutSets):
-        sig_cut_lower_file[iCut], sig_cut_upper_file[iCut], bkg_cut_lower_file[iCut], bkg_cut_upper_file[iCut] = [], [], [], []
-        for iPt in range(len(ptmins)):
-            # consider the different number of cutsets for each pt bin
-            if iCut < CutSets[iPt]:
-                sig_cut_lower_file[iCut].append(sig_cut_lower[iPt][iCut])
-                sig_cut_upper_file[iCut].append(sig_cut_upper[iPt][iCut])
-                bkg_cut_lower_file[iCut].append(bkg_cut_lower[iPt][iCut])
-                bkg_cut_upper_file[iCut].append(bkg_cut_upper[iPt][iCut])
-            else:
-                sig_cut_lower_file[iCut].append(sig_cut_lower[iPt][CutSets[iPt]-1])
-                sig_cut_upper_file[iCut].append(sig_cut_upper[iPt][CutSets[iPt]-1])
-                bkg_cut_lower_file[iCut].append(bkg_cut_lower[iPt][CutSets[iPt]-1])
-                bkg_cut_upper_file[iCut].append(bkg_cut_upper[iPt][CutSets[iPt]-1])
-
-    combinations = make_combination(ptmins, ptmaxs, maxCutSets, sig_cut_lower_file, 
-                                    sig_cut_upper_file, bkg_cut_lower_file, bkg_cut_upper_file,
-                                    input['MassMin'], input['MassMax'])
-
-    for iFile in range(maxCutSets):
-        print(f'''For cutset {iFile}:
-        ptmin: {ptmins}
-        ptmax: {ptmaxs}
-        sig cut: {[f"{x:.3f}" for x in sig_cut_lower_file[iFile]]}
-                 {[f"{x:.3f}" for x in sig_cut_upper_file[iFile]]}
-        bkg cut: {[f"{x:.3f}" for x in bkg_cut_lower_file[iFile]]}
-                 {[f"{x:.3f}" for x in bkg_cut_upper_file[iFile]]}
-''')
+    sig_cuts_lower = [pad_to_length(cuts, maxCutSets) for cuts in sig_cuts_lower]
+    sig_cuts_upper = [pad_to_length(cuts, maxCutSets) for cuts in sig_cuts_upper]
+    bkg_cuts_upper = [pad_to_length(cuts, maxCutSets) for cuts in bkg_cuts_upper]
 
     os.makedirs(f'{outputdir}/config', exist_ok=True)
-    for iFile in range(maxCutSets):
-        with open(f'{outputdir}/config/cutset_{suffix}_{iFile:02}.yml', 'w') as file:
-            yaml.dump(combinations[iFile], file, default_flow_style=False)
+    for iCut in range(maxCutSets):
+        score_bkg_max = [float(bkg_cuts_upper[i][iCut]) for i in range(len(ptBinIdxs))]
+        score_fd_min  = [float(sig_cuts_lower[i][iCut]) for i in range(len(ptBinIdxs))]
+        score_fd_max  = [float(sig_cuts_upper[i][iCut]) for i in range(len(ptBinIdxs))]
+
+        combinations = {
+            'icutset': iCut,
+            'cutvars': {
+                'Pt': {'min': ptmins, 'max': ptmaxs, 'name': 'pt_cand'},
+                'score_bkg': {'min': [0.0] * len(ptmins), 'max': score_bkg_max, 'name': 'score_bkg'},
+                'score_FD': {'min': score_fd_min, 'max': score_fd_max, 'name': 'score_FD'},
+            },
+            'fitrangemin': massmins,
+            'fitrangemax': massmaxs,
+        }
+
+        with open(f'{outputdir}/config/cutset_{suffix}_{iCut:02}.yml', 'w') as file:
+            yaml.dump(combinations, file, default_flow_style=False)
+
     print(f'Yaml files are saved in {outputdir}/config')
 
 if __name__ == "__main__":

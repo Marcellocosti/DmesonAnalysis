@@ -65,7 +65,7 @@ def get_files_to_download(grid, config):
         for file in input_files:
             grid_result = grid.Ls(file)
             if not grid_result:
-                print(f"\033[93mWARINING\033[0m: File {file} not found on the grid.")
+                print(f"\033[93mWARNING\033[0m: File {file} not found on the grid.")
                 continue
             file_info_list = grid_result.GetFileInfoList()
 
@@ -275,7 +275,7 @@ def download_files_from_grid(config, aod=False, analysis=False, parquet=False, f
         aod = True
         analysis = True
         parquet = True
-    if not full_config:
+    if full_config:
         full_config = True
 
     if aod or analysis:

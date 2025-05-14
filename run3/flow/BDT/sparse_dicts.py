@@ -262,9 +262,9 @@ def get_sparses(config, get_data, get_mc_reco, get_mc_gen, anres_files=[], prepr
         else:
             infiletask = TFile(config['eff_filename'])
     
-    print("\n\n")
-    print(f"infiletask: {infiletask}")
-    print("\n\n")
+    # print("\n\n")
+    # print(f"infiletask: {infiletask}")
+    # print("\n\n")
     
     if get_mc_reco: 
         if config['Dmeson'] == 'Dzero':

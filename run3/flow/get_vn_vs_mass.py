@@ -45,6 +45,12 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
     # read global configuration
     ptMins = fitConfig['ptmins']
     ptMaxs = fitConfig['ptmaxs']
+    if fitConfig.get('select_bin'):
+        print(f"Using pt binning from the input file")
+        ptMins = [ptMins[fitConfig['select_bin']-1]]
+        ptMaxs = [ptMaxs[fitConfig['select_bin']-1]]
+    ptBinIdxs = [fitConfig['ptmins'].index(pt) for pt in ptMins]
+
     ptLims = list(ptMins)
     nPtBins = len(ptMins)
     ptLims.append(ptMaxs[-1])
@@ -55,16 +61,16 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
     fixMean = fitConfig['FixMean']
     harmonic = fitConfig['harmonic']
     particleName = fitConfig['Dmeson']
-    inclSecPeak = fitConfig['InclSecPeak']
-    rebins = fitConfig['Rebin']
+    inclSecPeak = [fitConfig['InclSecPeak'][iPt] for iPt in ptBinIdxs]
+    rebins = [fitConfig['Rebin'][iPt] for iPt in ptBinIdxs]
     if not isinstance(rebins, list):
-        rebins = [rebins] * len(ptMins)
-    massMins = fitConfig['MassMin']
+        rebins = [rebins] * nPtBins
+    massMins = [fitConfig['MassMin'][iPt] for iPt in ptBinIdxs]
     if not isinstance(massMins, list):
-        massMins = [massMins] * len(ptMins)
-    massMaxs = fitConfig['MassMax']
+        massMins = [massMins] * nPtBins
+    massMaxs = [fitConfig['MassMax'][iPt] for iPt in ptBinIdxs]
     if not isinstance(massMaxs, list):
-        massMaxs = [massMaxs] * len(ptMins)
+        massMaxs = [massMaxs] * nPtBins
     # REVIEW: use it as a additional parameter
     useRefl = fitConfig.get('enableRef', False)
     reflFile = fitConfig.get('ReflFile', '')
@@ -74,13 +80,13 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
         fixSigma = [fixSigma for _ in ptMins]
     if not isinstance(fixMean, list):
         fixMean = [fixMean for _ in ptMins]
-    SgnFuncStr = fitConfig['SgnFunc']
+    SgnFuncStr = [fitConfig['SgnFunc'][iPt] for iPt in ptBinIdxs]
     if not isinstance(SgnFuncStr, list):
         SgnFuncStr = [SgnFuncStr] * nPtBins
-    BkgFuncStr = fitConfig['BkgFunc']
+    BkgFuncStr = [fitConfig['BkgFunc'][iPt] for iPt in ptBinIdxs]
     if not isinstance(BkgFuncStr, list):
         BkgFuncStr = [BkgFuncStr] * nPtBins
-    BkgFuncVnStr = fitConfig['BkgFuncVn']
+    BkgFuncVnStr = [fitConfig['BkgFuncVn'][iPt] for iPt in ptBinIdxs]
     if not isinstance(BkgFuncVnStr, list):
         BkgFuncVn = [BkgFuncVnStr] * nPtBins
     # REVIEW: use it as a additional parameter
@@ -102,7 +108,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
         elif bkgStr == 'kPol4':
             BkgFunc.append(6)
             degPol[-1] = 4
-            if len(ptMins) > 1 and inclSecPeak[iPt] == 1:
+            if nPtBins > 1 and inclSecPeak[iPt] == 1:
                 print('ERROR: Pol3 and Pol4 fits work only with one bin if you have the secondary peak! Exit!')
                 sys.exit()
         elif bkgStr == 'kPow':
@@ -175,14 +181,14 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
     fTotFuncMass, fTotFuncVn, fSgnFuncMass, fBkgFuncMass, fMassBkgRflFunc, fMassSecPeakFunc, fBkgFuncVn, fVnSecPeakFunc, fVnCompFuncts = [], [], [], [], [], [], [], [], []
     hMCSgn, hMCRefl = [], []
     
-    fMassTemplFuncts = [[None]*len(fitConfig['TemplsNames']) for _ in range(len(ptMins))] if fitConfig.get('IncludeTempls') and (particleName == 'Dplus' or particleName == 'Ds') else []
-    fMassTemplTotFuncts = [None]*len(ptMins) if fitConfig.get('IncludeTempls') and (particleName == 'Dplus' or particleName == 'Ds') else []
-    fVnCompFuncts = [[None]*len(fitConfig['TemplsNames']) for _ in range(len(ptMins))] if fitConfig.get('DrawVnComps') else []
+    fMassTemplFuncts = [[None]*len(fitConfig['TemplsNames']) for _ in range(nPtBins)] if fitConfig.get('IncludeTempls') and (particleName == 'Dplus' or particleName == 'Ds') else []
+    fMassTemplTotFuncts = [None]*nPtBins if fitConfig.get('IncludeTempls') and (particleName == 'Dplus' or particleName == 'Ds') else []
+    fVnCompFuncts = [] # [[None]*len(fitConfig['TemplsNames']) for _ in range(nPtBins)] if fitConfig.get('DrawVnComps') else []
 
     hist_reso = infile.Get('hist_reso')
     hist_reso.SetDirectory(0)
     reso = hist_reso.GetBinContent(1)
-    inclSecPeak = [inclSecPeak] * len(ptMins) if not isinstance(inclSecPeak, list) else inclSecPeak
+    inclSecPeak = [inclSecPeak] * nPtBins if not isinstance(inclSecPeak, list) else inclSecPeak
     for iPt, (ptMin, ptMax) in enumerate(zip(ptMins, ptMaxs)):
         if not vn_method == 'sp' and not vn_method == 'ep':
             print(f'loading: cent_bins{cent}/pt_bins{ptMin}_{ptMax}/hist_mass_cent{cent}_pt{ptMin}_{ptMax}')
@@ -197,7 +203,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
             hVn[iPt].SetDirectory(0)
             hMass[iPt].SetDirectory(0)
             SetObjectStyle(hMass[iPt], color=kBlack, markerstyle=kFullCircle)
-            SetObjectStyle(hVn[iPt], color=kBlack, markerstyle=kFullCircle)    
+            SetObjectStyle(hVn[iPt], color=kBlack, markerstyle=kFullCircle)
     infile.Close()
 
     hSigmaToFix = None
@@ -239,6 +245,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
         hMeanSimFit = TH1D('hMeanSimFit', f';{ptTit};mean', nPtBins, ptBinsArr)
         hMeanSecPeakFitMass = TH1D('hMeanSecondPeakFitMass', f';{ptTit};mean second peak mass fit', nPtBins, ptBinsArr)
         hMeanSecPeakFitVn = TH1D('hMeanSecondPeakFitVn', f';{ptTit};mean second peak vn fit', nPtBins, ptBinsArr)
+        hTemplOverSgn = TH1D('hTemplOverSgn', f';{ptTit};Templ / Sgn', nPtBins, ptBinsArr)
         hSigmaSecPeakFitMass = TH1D('hSigmaSecondPeakFitMass',
                                     f';{ptTit};width second peak mass fit', nPtBins, ptBinsArr)
         hSigmaSecPeakFitVn = TH1D('hSigmaSecondPeakFitVn', f';{ptTit};width second peak vn fit', nPtBins, ptBinsArr)
@@ -365,7 +372,18 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
     #_____________________________________________________
     # Vn estimation with Scalar Product / Event Plane
     if vn_method == 'sp' or vn_method == 'ep':
-        massFitter, vnFitter = [], []
+        print(f"len(hMass): {len(hMass)}") 
+        print(f"len(hVn): {len(hVn)}") 
+        print(f"len(ptMins): {len(ptMins)}") 
+        print(f"len(ptMaxs): {len(ptMaxs)}") 
+        print(f"len(rebins): {len(rebins)}") 
+        print(f"len(SgnFunc): {len(SgnFunc)}") 
+        print(f"len(BkgFunc): {len(BkgFunc)}") 
+        print(f"len(BkgFuncVn): {len(BkgFuncVn)}") 
+        print(f"len(inclSecPeak): {len(inclSecPeak)}") 
+        print(f"len(massMins): {len(massMins)}") 
+        print(f"len(massMaxs): {len(massMaxs)}")        
+        _, vnFitter = [], []
         for iPt, (hM, hV, ptMin, ptMax, reb, sgnEnum, bkgEnum, bkgVnEnum, secPeak, massMin, massMax) in enumerate(
                 zip(hMass, hVn, ptMins, ptMaxs, rebins, SgnFunc, BkgFunc, BkgFuncVn, inclSecPeak, massMins, massMaxs)):
             iCanv = iPt
@@ -418,27 +436,27 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                     print(f'Fixing sigma from file {fixSigmaFromFile}: {hSigmaFromFile.GetBinContent(sigmaBin)}')
                     vnFitter[iPt].SetInitialGaussianSigma(hSigmaFromFile.GetBinContent(sigmaBin), 2)
                 else:
-                    vnFitter[iPt].SetInitialGaussianSigma(fitConfig['Sigma'][iPt], 2)
+                    vnFitter[iPt].SetInitialGaussianSigma(fitConfig['Sigma'][ptBinIdxs[iPt]], 2)
             else:
-                vnFitter[iPt].SetInitialGaussianSigma(fitConfig['Sigma'][iPt], 1)
+                vnFitter[iPt].SetInitialGaussianSigma(fitConfig['Sigma'][ptBinIdxs[iPt]], 1)
             # nSigma4SB
             if 'NSigma4SB' in fitConfig:
-                print(f'NSigma4SB = {fitConfig["NSigma4SB"][iPt]}')
-                vnFitter[iPt].SetNSigmaForVnSB(fitConfig['NSigma4SB'][iPt])
+                print(f'NSigma4SB = {fitConfig["NSigma4SB"][ptBinIdxs[iPt]]}')
+                vnFitter[iPt].SetNSigmaForVnSB(fitConfig['NSigma4SB'][ptBinIdxs[iPt]])
             # Second peak (Ds specific)
             # REVIEW TODO: please have a look at how to fixed the second peak sigma since there is a template I didn't modify it
             if secPeak and particleName == 'Ds':
-                vnFitter[iPt].IncludeSecondGausPeak(massDplus, False, fitConfig['SigmaSecPeak'][iPt], False, 1, fitConfig.get('FixVnSecPeakToSgn', False))
+                vnFitter[iPt].IncludeSecondGausPeak(massDplus, False, fitConfig['SigmaSecPeak'][ptBinIdxs[iPt]], False, 1, fitConfig.get('FixVnSecPeakToSgn', False))
                 if fixSigma[iPt]:
                     # REVIEW: fix the second peak sigma
-                    vnFitter[iPt].SetInitialGaussianSigma2Gaus(fitConfig['SigmaSecPeak'][iPt], 2)
+                    vnFitter[iPt].SetInitialGaussianSigma2Gaus(fitConfig['SigmaSecPeak'][ptBinIdxs[iPt]], 2)
             # Second peak (Dplus specific)
             if secPeak and particleName == 'Dplus':
-                vnFitter[iPt].IncludeSecondGausPeak(massDstar, True, fitConfig['SigmaSecPeak'][iPt], True, 1, fitConfig.get('FixVnSecPeakToSgn', True))
-                # vnFitter[iPt].IncludeSecondGausPeak(massDstar, False, fitConfig['SigmaSecPeak'][iPt], False, 1, fitConfig.get('FixVnSecPeakToSgn', False))
+                vnFitter[iPt].IncludeSecondGausPeak(massDstar, True, fitConfig['SigmaSecPeak'][ptBinIdxs[iPt]], True, 1, fitConfig.get('FixVnSecPeakToSgn', True))
+                # vnFitter[iPt].IncludeSecondGausPeak(massDstar, False, fitConfig['SigmaSecPeak'][ptBinIdxs[iPt]], False, 1, fitConfig.get('FixVnSecPeakToSgn', False))
                 if fixSigma[iPt]:
                     # REVIEW: fix the second peak sigma
-                    vnFitter[iPt].SetInitialGaussianSigma2Gaus(fitConfig['SigmaSecPeak'][iPt], 2)
+                    vnFitter[iPt].SetInitialGaussianSigma2Gaus(fitConfig['SigmaSecPeak'][ptBinIdxs[iPt]], 2)
                     # REVIEN: this one to be further checked
                     # .SetFixFrac2Gaus()
 
@@ -457,30 +475,31 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 Templs, TemplsRelWeights = [], []
                 for name in fitConfig['TemplsNames']:
                     Templs.append(weightsFile.Get(f"cutset_{cut_var_suffix}/{name}/hMassRaw"))
-                    if fitConfig['AnchorTemplsMode'] == 2: 
+                    if fitConfig['AnchorTemplsMode'] == 2:    # Templates anchored to signal
                         TemplsRelWeights.append(weightsFile.Get(f"cutset_{cut_var_suffix}/{name}/hRelWeightToSgn").GetBinContent(1))
                     else:
                         TemplsRelWeights.append(1.)
                         print("Relative template weighting still to be implemented!")
                 print(f"Templs: {Templs}")
                 vnFitter[iPt].SetTemplatesHisto(fitConfig['AnchorTemplsMode'], TemplsRelWeights, fitConfig['TemplsNames'], Templs,
-                                                fitConfig['InitWeights'][iPt], fitConfig['MinWeights'][iPt], fitConfig['MaxWeights'][iPt], 
-                                                fitConfig['VnInitWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else [], 
-                                                fitConfig['VnMinWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else [], 
-                                                fitConfig['VnMaxWeights'][iPt] if not fitConfig.get('FixVnTemplToSgn') else [], 
-                                                fitConfig['FixVnTemplToSgn'][iPt])
+                                                fitConfig['InitWeights'][ptBinIdxs[iPt]] if fitConfig['AnchorTemplsMode'] != 2 else [],
+                                                fitConfig['MinWeights'][ptBinIdxs[iPt]] if fitConfig['AnchorTemplsMode'] != 2 else [],
+                                                fitConfig['MaxWeights'][ptBinIdxs[iPt]] if fitConfig['AnchorTemplsMode'] != 2 else [],
+                                                fitConfig['VnInitWeights'][ptBinIdxs[iPt]] if not fitConfig.get('FixVnTemplToSgn') else [], 
+                                                fitConfig['VnMinWeights'][ptBinIdxs[iPt]] if not fitConfig.get('FixVnTemplToSgn') else [], 
+                                                fitConfig['VnMaxWeights'][ptBinIdxs[iPt]] if not fitConfig.get('FixVnTemplToSgn') else [], 
+                                                fitConfig['FixVnTemplToSgn'])
                 print("Histo templates set!")
-                # quit()
 
             initPars = []
-            if fitConfig.get('InitFitPars') and fitConfig['InitFitPars'][iPt] != []:
-                initPars = fitConfig['InitFitPars'][iPt]
+            if fitConfig.get('InitFitPars') and fitConfig['InitFitPars'][ptBinIdxs[iPt]] != []:
+                initPars = fitConfig['InitFitPars'][ptBinIdxs[iPt]]
             if fitConfig.get("PrefitMC"):
                 print(f"Fixing signal parameters from MC")
                 sgnParsFromHisto = [[histoPar.GetName(), 
-                                     histoPar.GetBinContent(iPt+1), 
-                                     0 if histoPar.GetName() not in ["Mean", "Sigma"] else histoPar.GetBinContent(iPt+1)-10, 
-                                     -1 if histoPar.GetName() not in ["Mean", "Sigma"] else histoPar.GetBinContent(iPt+1)+10] 
+                                     histoPar.GetBinContent(ptBinIdxs[iPt]+1), 
+                                     0 if histoPar.GetName() not in ["Mean", "Sigma"] else histoPar.GetBinContent(ptBinIdxs[iPt]+1)-10, 
+                                     -1 if histoPar.GetName() not in ["Mean", "Sigma"] else histoPar.GetBinContent(ptBinIdxs[iPt]+1)+10] 
                                     for histoPar in histosPars] 
                 print(f"sgnParsFromHisto: {sgnParsFromHisto}")
                 initPars.extend(sgnParsFromHisto)
@@ -551,6 +570,8 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 gvnUncSecPeak.SetPointError(iPt, (ptMax-ptMin)/2, (ptMax-ptMin)/2, 1.e-20, 1.e-20)
             
             if useTemplates:
+                print(f"Filling TemplOverSgn: {vnFitter[iPt].GetTemplOverSig()}")
+                hTemplOverSgn.SetBinContent(iPt+1, vnFitter[iPt].GetTemplOverSig())
                 for iTempl, (templVn, templVnUnc) in enumerate(zip(vnResults["vnTemplates"], vnResults["vnTemplatesUncs"])):
                     gvnTempls[iTempl].SetPoint(iPt, (ptMin+ptMax)/2, templVn)
                     gvnTempls[iTempl].SetPointError(iPt, (ptMax-ptMin)/2, (ptMax-ptMin)/2, 1.e-20, 1.e-20)
@@ -635,6 +656,9 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                     legVnCompn.SetTextSize(0.03)
                     legVnCompn.AddEntry(fBkgFuncVn[iPt], f'#it{{v}}{harmonic} Bkg Func.', 'l')
                     legVnCompn.AddEntry(fTotFuncVn[iPt], f'#it{{v}}{harmonic} Tot Func.', 'l')
+                    print(f"\n\n")
+                    print(f"fVnCompFuncts: {fVnCompFuncts}")
+                    print(f"\n\n")
                     SetObjectStyle(fVnCompFuncts[iPt]['vnSgn'], fillcolor=kAzure+4, fillstyle=3245, linewidth=0)
                     legVnCompn.AddEntry(fVnCompFuncts[iPt]['vnSgn'], f"Signal #it{{v}}{harmonic}", 'f')
                     SetObjectStyle(fVnCompFuncts[iPt]['vnBkg'], color=kOrange+1, linestyle=1, linewidth=2)
@@ -672,13 +696,14 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
             sgnFuncMassPrefit.SetLineWidth(2)
             sgnFuncMassPrefit.SetLineWidth(3)
             sgnFuncMassPrefit.Draw("same")
-            templFuncMassPrefit = invMassPrefit.GetTemplFunc()
-            print(f"invMassPrefit.GetTemplOverSig(): {invMassPrefit.GetTemplOverSig()}")
-            print(f"vnFitter[iPt].GetTemplOverSig(): {vnFitter[iPt].GetTemplOverSig()}")
-            templFuncMassPrefit.SetLineColor(kMagenta)
-            templFuncMassPrefit.SetLineWidth(2)
-            templFuncMassPrefit.SetLineWidth(3)
-            templFuncMassPrefit.Draw("same")
+            if useTemplates:
+                templFuncMassPrefit = invMassPrefit.GetTemplFunc()
+                print(f"invMassPrefit.GetTemplOverSig(): {invMassPrefit.GetTemplOverSig()}")
+                print(f"vnFitter[iPt].GetTemplOverSig(): {vnFitter[iPt].GetTemplOverSig()}")
+                templFuncMassPrefit.SetLineColor(kMagenta)
+                templFuncMassPrefit.SetLineWidth(2)
+                templFuncMassPrefit.SetLineWidth(3)
+                templFuncMassPrefit.Draw("same")
 
             totFuncMassPrefit.SetLineColor(kRed)
             totFuncMassPrefit.SetLineWidth(2)
@@ -924,7 +949,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
                 suffix_pdf = ')'
             else:
                 suffix_pdf = ''
-            if len(ptMins)==1:
+            if nPtBins==1:
                 cSimFit[iPt].SaveAs(f'{outputdir}/SimFit{suffix}_{particleName}.pdf')
             else:
                 cSimFit[iPt].SaveAs(f'{outputdir}/SimFit{suffix}_{particleName}.pdf{suffix_pdf}')
@@ -958,6 +983,7 @@ def get_vn_vs_mass(fitConfigFileName, centClass, inFileName,
         hMeanSimFit.Write()
         hMeanSecPeakFitMass.Write()
         hMeanSecPeakFitVn.Write()
+        hTemplOverSgn.Write()
         hSigmaSecPeakFitMass.Write()
         hSigmaSecPeakFitVn.Write()
         hRawYieldsSimFit.Write()

@@ -94,6 +94,9 @@ def minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, output
         print(f"len(hEffFD): {len(hEffFD)}")
         for iCut, (hRaw, hEffP, hEffF) in enumerate(zip(hRawYields, hEffPrompt, hEffFD)):
             # if skip_cuts is defined check if the cut number is present for that pt
+            print(f"iCut: {iCut}")
+            print(f"iPt: {iPt}")
+            print(f"len(config['minimisation']['skip_cuts']): {len(config['minimisation']['skip_cuts'])}")
             if 'skip_cuts' in config['minimisation'] and iPt < len(config['minimisation']['skip_cuts']):
                 if iCut in config['minimisation']['skip_cuts'][iPt]:
                     print(f'Skipping cut set {iCut} for pt {ptMin:.1f}-{ptMax:.1f}')
@@ -329,7 +332,7 @@ def minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, output
         hRawYieldFDVsCut[iPt].DrawCopy('histsame')
         hRawYieldsVsCutReSum[iPt].Draw('same')
         legDistr.Draw()
-        #latInfo.DrawLatex(0.47, 0.65, f'#chi^{{2}} / ndf = {chiSquare:.3f}') # DO NOT TRUST CHI2 IN RUN 3
+        latInfo.DrawLatex(0.47, 0.65, f'#chi^{{2}} / ndf = {chiSquare:.3f}') # DO NOT TRUST CHI2 IN RUN 3
         # bottom-left: efficiency
         cFinalResPt[-1].cd(3).DrawFrame(0.5, hEffPromptVsCut[iPt].GetMinimum()/5, nSets + 0.5, 1., f'{commonString};efficiency')
         cFinalResPt[-1].cd(3).SetLogy()
@@ -418,6 +421,9 @@ def compute_frac_cut_var(config_flow, inputdir, outputdir, suffix, batch=False):
     # load configuration
     ptmins = config['ptmins']
     ptmaxs = config['ptmaxs']
+    if config.get('select_bin'):
+        ptmins = [ptmins[config['select_bin']-1]]
+        ptmaxs = [ptmaxs[config['select_bin']-1]]
 
     hRawYields, hEffPrompt, hEffFD = [], [], []
 

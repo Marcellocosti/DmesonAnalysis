@@ -89,6 +89,12 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files, sys
         
     ptmins = config['ptmins']
     ptmaxs = config['ptmaxs']
+    if config.get('select_bin'):
+        print(f"Using pt binning from the config file")
+        npt_bins = 1
+        ptmins = [ptmins[config['select_bin']-1]]
+        ptmaxs = [ptmaxs[config['select_bin']-1]]
+    ptBinIdxs = [config['ptmins'].index(pt) for pt in ptmins]
 
     particleName = config['Dmeson']
 
@@ -97,6 +103,16 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files, sys
     CutSets, _, _, _, _ = get_cut_sets_config(config_flow)
 
     if not systematics and len(fracFiles) != len(v2Files):
+        # print(f'\033[93mWARNING: Number of eff and frac files do not match: {len(fracFiles)} != {len(v2Files)}\033[0m')
+        # fracFiles_update = []
+        # for fracFile in fracFiles:
+        #     for v2File in v2Files:
+        #         if fracFile[-7:-5] == v2File[-7:-5]:
+        #             print(f"Found matching fracFile: {fracFile} with v2File: {v2File}")
+        #             fracFiles_update.append(fracFile)
+        # fracFiles = fracFiles_update
+        # if len(fracFiles) != len(v2Files):
+        #     raise ValueError(f'Number of eff and frac files do not match: {len(fracFiles)} != {len(v2Files)}')
         raise ValueError(f'Number of eff and frac files do not match: {len(fracFiles)} != {len(v2Files)}')
 
 
@@ -164,14 +180,15 @@ def v2_vs_frac(config_flow, inputdir, outputdir, suffix, fracFiles, v2Files, sys
                 print(f"Recovered fracFiles: {fracFiles}, v2Files: {v2Files}")  
             else: 
                 keepTrial = False
-            
+
         # If the flag is set to False, break out of the outer loop and terminate
         if not keepTrial:
             print("Exiting due to < 3 cuts with required significance and chi2 conditions.")
             return  # Terminate the function and exit the script
 
         ptCent = (ptMin + ptMax) / 2
-        nSets = CutSets[iPt]
+        nSets = len(fracFiles)
+        # nSets = CutSets[iPt]
         print(f"nSets: {nSets}")
         print(f"gV2: {gV2}")
         print(f"CutSets[iPt]: {CutSets[iPt]}")

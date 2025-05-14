@@ -111,7 +111,7 @@ def proj_mc_reco(sparsesReco, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights
 
     hMassPrompt = sparsesReco['RecoPrompt'].Projection(axes['RecoPrompt']['Mass'])
     hMassPrompt.SetName(f'hPromptMass_{ptMin}_{ptMax}')
-    hMassFD = sparsesReco['RecoFD'].Projection(axes['RecoFD']['Mass'])    
+    hMassFD = sparsesReco['RecoFD'].Projection(axes['RecoFD']['Mass'])
     hMassFD.SetName(f'hFDMass_{ptMin}_{ptMax}')
 
     ### project pt prompt
@@ -132,7 +132,7 @@ def proj_mc_reco(sparsesReco, ptWeights, ptWeightsB, Bspeciesweights, sPtWeights
     else:
         hPtFD = sparsesReco['RecoFD'].Projection(axes['RecoFD']['Pt'])
 
-    ## write the output      
+    ## write the output 
     hMassPrompt.Write('hPromptMass', writeopt)
     hMassFD.Write('hFDMass', writeopt)
     hPtPrompt.Write('hPromptPt', writeopt)
@@ -348,6 +348,7 @@ if __name__ == "__main__":
 
     with alive_bar(len(cutVars['Pt']['min']), title='Processing pT bins') as bar:
         for iPt, (ptMin, ptMax) in enumerate(zip(cutVars['Pt']['min'], cutVars['Pt']['max'])):
+            ptBinIdx = config['ptmins'].index(ptMin)
             print(f'Projecting distributions for {ptMin:.1f} < pT < {ptMax:.1f} GeV/c')
             ptLowLabel = ptMin * 10
             ptHighLabel = ptMax * 10
@@ -368,7 +369,7 @@ if __name__ == "__main__":
                             print(f"cutVars['score_bkg']['min'][iPt]: {cutVars['score_bkg']['min'][iPt]}")
                             print(f"cutVars['score_bkg']['max'][iPt]: {cutVars['score_bkg']['max'][iPt]}")
                             sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"].GetAxis(axes['Flow']['score_bkg']).SetRangeUser(cutVars['score_bkg']['min'][iPt], cutVars['score_bkg']['max'][iPt])
-                    proj_data(sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"], ptMin, ptMax, cent_min, cent_max, axes, config['inv_mass_bins'][iPt], reso, write_opt_data, args.systematics)
+                    proj_data(sparsesFlow[f"Flow_{ptLowLabel}_{ptHighLabel}"], ptMin, ptMax, cent_min, cent_max, axes, config['inv_mass_bins'][ptBinIdx], reso, write_opt_data, args.systematics)
                     outfile.cd(ptcentdir)
                     print(f"Projected data!")
 
@@ -376,7 +377,7 @@ if __name__ == "__main__":
                     for iSparse, (key, sparse) in enumerate(sparsesFlow.items()):
                         for iVar in cutVars:
                             sparse.GetAxis(axes['Flow'][iVar]).SetRangeUser(cutVars[iVar]['min'][iPt], cutVars[iVar]['max'][iPt])
-                    proj_data(sparsesFlow, ptMin, ptMax, cent_min, cent_max, axes, config['inv_mass_bins'][iPt], reso, write_opt_data)
+                    proj_data(sparsesFlow, ptMin, ptMax, cent_min, cent_max, axes, config['inv_mass_bins'][ptBinIdx], reso, write_opt_data)
                     print("Projected data!")
             else:
                 print("Kept data from previous projections!")

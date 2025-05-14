@@ -104,8 +104,7 @@ class InvMassFitter : public TNamed {
   void SetTemplates(int anchormode, std::vector<Double_t> relcombweights, std::vector<std::string> templsnames, std::vector<const TH1*> histotempl,
                     std::vector<Double_t> initweights, std::vector<Double_t> minweights, std::vector<Double_t> maxweights) {
     
-    // fTemplates=kTRUE;
-    TFile* file = new TFile("templates_from_roofit_massfitter.root", "RECREATE");
+    // TFile* file = new TFile("templates_from_roofit_massfitter.root", "RECREATE");
 
     for (int iTempl = 0; iTempl < histotempl.size(); ++iTempl) {
       file->mkdir(Form("Template_%i", iTempl));
@@ -145,18 +144,18 @@ class InvMassFitter : public TNamed {
       TCanvas* c = new TCanvas(Form("canvas_%i", iTempl), Form("canvas_%i", iTempl), 800, 600);
       frame->Draw();
 
-      // Save original and normalized histograms
-      histotempl[iTempl]->Write();
-      histPdf->Write();  // Proper PDF histogram
+      // // Save original and normalized histograms
+      // histotempl[iTempl]->Write();
+      // histPdf->Write();  // Proper PDF histogram
 
       // Optional: Save histogram with just normalized counts
       TH1D* histNormCounts = (TH1D*)histotempl[iTempl]->Clone("histNormCounts");
       histNormCounts->Scale(1.0 / histNormCounts->Integral());
-      histNormCounts->Write();
+      // histNormCounts->Write();
 
-      // Save canvas and RooFit objects
-      c->Write();
-      data_hist->Write();
+      // // Save canvas and RooFit objects
+      // c->Write();
+      // data_hist->Write();
 
       double xval = 1.751;  // example value in the domain of fMassVar
       this->fMassVar.setVal(xval);  // set the value to evaluate

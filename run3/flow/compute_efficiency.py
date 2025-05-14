@@ -169,6 +169,11 @@ def compute_eff_thns(config_file, centclass, inputFile, outputdir, suffix, batch
     infile = ROOT.TFile.Open(inputFile)
     ptMins = config['ptmins']
     ptMaxs = config['ptmaxs']
+    if config.get('select_bin'):
+        print(f"Using pt binning from the input file")
+        ptMins = [ptMins[config['select_bin']-1]]
+        ptMaxs = [ptMaxs[config['select_bin']-1]]
+
     ptLims = list(ptMins)
     nPtBins = len(ptMins)
     ptLims.append(ptMaxs[-1])

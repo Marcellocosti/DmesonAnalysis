@@ -385,17 +385,23 @@ Bool_t VnVsMassFitter::SimultaneousFit() {
   // to the ones obtained from the mass prefit (alpha and N fixed to the MC from the config)
   if (fMassSgnFuncType==kDoubleCBSymm) {
     // fitter.Config().ParSettings(fNParsMassBkg).Fix();
-    fitter.Config().ParSettings(fNParsMassBkg+2).Fix();   // alpha
-    fitter.Config().ParSettings(fNParsMassBkg+3).Fix();   // alpha
-    fitter.Config().ParSettings(fNParsMassBkg+4).Fix();   // N
+    // fitter.Config().ParSettings(fNParsMassBkg+2).Fix();   // alpha
+    // fitter.Config().ParSettings(fNParsMassBkg+3).Fix();   // alpha
+    // fitter.Config().ParSettings(fNParsMassBkg+4).Fix();   // N
   }
   if (fMassSgnFuncType==kDoubleCBAsymm) {
     // fitter.Config().ParSettings(fNParsMassBkg).Fix();
-    fitter.Config().ParSettings(fNParsMassBkg+2).Fix();   // alpha
-    fitter.Config().ParSettings(fNParsMassBkg+3).Fix();   // alpha
-    fitter.Config().ParSettings(fNParsMassBkg+4).Fix();   // N
-    fitter.Config().ParSettings(fNParsMassBkg+5).Fix();   // N
-    fitter.Config().ParSettings(fNParsMassBkg+6).Fix();   // N
+    fitter.Config().ParSettings(fNParsMassBkg+2).SetLimits(initpars[fNParsMassBkg+2] - (initpars[fNParsMassBkg+2] / 5), initpars[fNParsMassBkg+2] + (initpars[fNParsMassBkg+2] / 5));   // alpha
+    fitter.Config().ParSettings(fNParsMassBkg+3).SetLimits(initpars[fNParsMassBkg+3] - (initpars[fNParsMassBkg+3] / 5), initpars[fNParsMassBkg+3] + (initpars[fNParsMassBkg+3] / 5));   // alpha
+    fitter.Config().ParSettings(fNParsMassBkg+4).SetLimits(initpars[fNParsMassBkg+4] - (initpars[fNParsMassBkg+4] / 5), initpars[fNParsMassBkg+4] + (initpars[fNParsMassBkg+4] / 5));   // N
+    fitter.Config().ParSettings(fNParsMassBkg+5).SetLimits(initpars[fNParsMassBkg+5] - (initpars[fNParsMassBkg+5] / 5), initpars[fNParsMassBkg+5] + (initpars[fNParsMassBkg+5] / 5));   // N
+    fitter.Config().ParSettings(fNParsMassBkg+6).SetLimits(initpars[fNParsMassBkg+6] - (initpars[fNParsMassBkg+6] / 5), initpars[fNParsMassBkg+6] + (initpars[fNParsMassBkg+6] / 5));   // N
+
+    // fitter.Config().ParSettings(fNParsMassBkg+2).Fix();   // alpha
+    // fitter.Config().ParSettings(fNParsMassBkg+3).Fix();   // alpha
+    // fitter.Config().ParSettings(fNParsMassBkg+4).Fix();   // N
+    // fitter.Config().ParSettings(fNParsMassBkg+5).Fix();   // N
+    // fitter.Config().ParSettings(fNParsMassBkg+6).Fix();   // N
   }
   
   fitter.Config().MinimizerOptions().SetPrintLevel(0);
@@ -480,7 +486,6 @@ Bool_t VnVsMassFitter::SimultaneousFit() {
     cout << "fNParsTempls: " << fNParsTempls << endl; 
     cout << "fMassTemplFunc->Eval(1.861): " << fMassTemplFunc->Eval(1.861) << endl;
   }
-  cout << "fMassTemplFunc->Eval(1.861): " << fMassTemplFunc->Eval(1.861) << endl;
 
   fVn = fVnTotFunc->GetParameter(fVnTotFunc->GetNpar()-NvnParsSgn);
   fVnUncertainty = fVnTotFunc->GetParError(fVnTotFunc->GetNpar()-NvnParsSgn);
