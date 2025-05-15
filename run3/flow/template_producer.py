@@ -108,7 +108,7 @@ def templ_producer_histo(tree_file, var, pt_min, pt_max, queries, names, relweig
 
     return histo_comb
 
-def extract_template_weights(config):
+def extract_template_weights(config, correlated):
 
     with open(config, 'r') as cfg:
         config = yaml.safe_load(cfg)
@@ -222,7 +222,7 @@ def extract_template_weights(config):
                     if score_bkg:
                         df_sel = df_sel.query(f"fMlScore0 < {score_bkg['max'][iPt]}")
                     if score_fd:
-                        if config['minimisation']['correlated']:
+                        if correlated:
                             df_sel = df_sel.query(f"fMlScore1 >= {score_fd['min'][iPt]}")
                         else:
                             df_sel = df_sel.query(f"{score_fd['min'][iPt]} <= fMlScore1 < {score_fd['max'][iPt]}")
@@ -288,6 +288,8 @@ if __name__ == "__main__":
                         default=".", help="output directory")
     parser.add_argument("--suffix", "-s", metavar="text",
                         default="", help="suffix for output files")
+    parser.add_argument("--correlated", "-c", action="store_true", 
+                        help="Produce yml files for correlated cuts")
     
     args = parser.parse_args()
     

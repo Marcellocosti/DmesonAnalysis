@@ -20,9 +20,11 @@ def pad_to_length(list, target_len):
         Returns:
             list: padded list
     '''
-    return list + [list[-1]] * (target_len - len(list)) if len(list) < target_len else list
+    list_length = len(list)
+    len_offset = target_len - list_length
+    return list + [list[-1]] * len_offset if list_length < target_len else list
 
-def make_yaml(flow_config, outputdir, suffix):
+def make_yaml(flow_config, outputdir, suffix, correlated):
     '''
         Function to create a yaml file with a set of cuts for ML
         Args:
@@ -33,67 +35,52 @@ def make_yaml(flow_config, outputdir, suffix):
     with open(flow_config, 'r') as f:
         cfg = yaml.safe_load(f)
 
-    # os.makedirs(outputdir, exist_ok=True)
     ptmins = cfg['ptmins']
     ptmaxs = cfg['ptmaxs']
-    massmins = cfg['MassMin']
-    massmaxs = cfg['MassMax']
-    if cfg.get('select_bin'):
-        print(f"Using pt binning from the cfg file")
-        npt_bins = 1
-        ptmins = [ptmins[cfg['select_bin']-1]]
-        ptmaxs = [ptmaxs[cfg['select_bin']-1]]
-        massmins = [massmins[cfg['select_bin']-1]]
-        massmaxs = [massmaxs[cfg['select_bin']-1]]
+    nPtBins = len(ptmins)
+
+    cfg_cutvar = cfg['cut_variation']
+    if correlated:
+        sig = cfg_cutvar['corr_bdt_cut']['sig']
+        sig_cuts_lower = [list(np.arange(sig['min'][i], sig['max'][i], sig['step'][i])) for i in range(nPtBins)]
+        sig_cuts_upper = [[1.0] * len(cuts) for cuts in sig_cuts_lower]
     else:
-        if len(ptmins) != len(ptmaxs):
-            raise ValueError(f'''The number of pt bins({len(ptmins)}, {len(ptmaxs)} are not the same''')
-        npt_bins = len(ptmins)
-    ptBinIdxs = [cfg['ptmins'].index(pt) for pt in ptmins]
+        sig = cfg_cutvar['uncorr_bdt_cut']['sig']
+        sig_cuts_lower = [sig[i]['min'] for i in range(nPtBins)]
+        sig_cuts_upper = [sig[i]['max'] for i in range(nPtBins)]
 
-    if cfg['minimisation'].get('correlated'):
-        sig_cut = cfg['cut_variation']['corr_bdt_cut']['sig']
-        sig_cuts_lower = [list(np.arange(sig_cut['min'][iPt], sig_cut['max'][iPt], sig_cut['step'][iPt])) for iPt in ptBinIdxs]
-        sig_cuts_upper = [[1.0] * len(sig_low_edge) for sig_low_edge in sig_cuts_lower]
-        nCutSets = [len(sig_low_edge) for sig_low_edge in sig_cuts_lower]
-        bkg_cuts_upper = [[cfg['cut_variation']['corr_bdt_cut']['bkg_max'][idx]] * nCutSets[iPt] for iPt, idx in enumerate(ptBinIdxs)]
-    else:
-        sig_cut = cfg['cut_variation']['uncorr_bdt_cut']['sig']
-        sig_cuts_lower = [sig_cut[iPt]['min'] for iPt in ptBinIdxs]
-        sig_cuts_upper = [sig_cut[iPt]['max'] for iPt in ptBinIdxs]
-        nCutSets = [len(sig_cuts_lower[iPt]) for iPt in ptBinIdxs]
-        bkg_cuts_upper = [cfg['cut_variation']['uncorr_bdt_cut']['bkg_max'][iPt] for iPt in ptBinIdxs]
-
-    for iPt in range(npt_bins):
-        assert len(sig_cuts_lower[iPt]) == len(sig_cuts_upper[iPt]) == len(bkg_cuts_upper[iPt]) == nCutSets[iPt], (
-            f"Mismatch in lengths for pt bin {iPt}: \n"
-            f"sig_low:{len(sig_cuts_lower[iPt])}, \n"
-            f"sig_up: {len(sig_cuts_upper[iPt])}, \n"
-            f"bkg_up: {len(bkg_cuts_upper[iPt])}, \n"
-            f"nCutSets: {nCutSets[iPt]}"
-        )
-
-    maxCutSets = max(nCutSets)
-
+    # Determine the maximum number of cut sets across pt bins and pad all to uniform length
+    maxCutSets = max(len(cuts) for cuts in sig_cuts_lower)
     sig_cuts_lower = [pad_to_length(cuts, maxCutSets) for cuts in sig_cuts_lower]
     sig_cuts_upper = [pad_to_length(cuts, maxCutSets) for cuts in sig_cuts_upper]
-    bkg_cuts_upper = [pad_to_length(cuts, maxCutSets) for cuts in bkg_cuts_upper]
+    # Transpose: convert [iPt][iCut] → [iCut][iPt]
+    sig_cuts_lower = list(map(list, zip(*sig_cuts_lower)))
+    sig_cuts_upper = list(map(list, zip(*sig_cuts_upper)))
+
+    if correlated:
+        bkg_cuts_upper = [cfg_cutvar['corr_bdt_cut']['bkg_max']] * maxCutSets
+    else:
+        bkg_cuts_upper = [pad_to_length(cuts, maxCutSets) for cuts in cfg_cutvar['uncorr_bdt_cut']['bkg_max']]
+        bkg_cuts_upper  = list(map(list, zip(*bkg_cuts_upper)))
 
     os.makedirs(f'{outputdir}/config', exist_ok=True)
-    for iCut in range(maxCutSets):
-        score_bkg_max = [float(bkg_cuts_upper[i][iCut]) for i in range(len(ptBinIdxs))]
-        score_fd_min  = [float(sig_cuts_lower[i][iCut]) for i in range(len(ptBinIdxs))]
-        score_fd_max  = [float(sig_cuts_upper[i][iCut]) for i in range(len(ptBinIdxs))]
+    for iCut, (bkg_maxs, fd_mins, fd_maxs) in enumerate(zip(bkg_cuts_upper, sig_cuts_lower, sig_cuts_upper)):
+        bkg_max = list(map(float, bkg_maxs))
+        fd_min  = list(map(float, fd_mins))
+        fd_max  = list(map(float, fd_maxs))
+
+        if len(fd_min) != len(ptmins) or len(fd_max) != len(ptmins) or len(bkg_max) != len(ptmins):
+            raise ValueError(f"Length of fd_min or fd_max or bkg_max does not match length of ptmins: {len(fd_min)} != {len(ptmins)}")
 
         combinations = {
             'icutset': iCut,
             'cutvars': {
-                'Pt': {'min': ptmins, 'max': ptmaxs, 'name': 'pt_cand'},
-                'score_bkg': {'min': [0.0] * len(ptmins), 'max': score_bkg_max, 'name': 'score_bkg'},
-                'score_FD': {'min': score_fd_min, 'max': score_fd_max, 'name': 'score_FD'},
+                'Pt': {'min': ptmins, 'max': ptmaxs},
+                'score_bkg': {'min': [0.0] * len(ptmins), 'max': bkg_max},
+                'score_FD': {'min': fd_min, 'max': fd_max},
             },
-            'fitrangemin': massmins,
-            'fitrangemax': massmaxs,
+            'fitrangemin': cfg['MassMin'],
+            'fitrangemax': cfg['MassMax'],
         }
 
         with open(f'{outputdir}/config/cutset_{suffix}_{iCut:02}.yml', 'w') as file:
@@ -107,6 +94,7 @@ if __name__ == "__main__":
     parser.add_argument('--preprocessed', action='store_true', help='Flag to indicate preprocessing of the sparses')
     parser.add_argument("--outputdir", "-o", metavar="text", default=".", help="output directory")
     parser.add_argument("--suffix", "-s", metavar="text", default="", help="suffix for output files")
+    parser.add_argument("--correlated", "-c", action="store_true", help="Produce yml files for correlated cuts")
     args = parser.parse_args()
 
-    make_yaml(args.flow_config, args.outputdir, args.suffix)
+    make_yaml(args.flow_config, args.outputdir, args.suffix, args.correlated)

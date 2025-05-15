@@ -27,9 +27,11 @@ def check_dir(dir):
 	return
 
 def run_full_cut_variation(config_flow, 
-                           use_preprocessed, 
+                           use_preprocessed,
+						   correlated=False,
+						   combined=False,
 						   calc_weights=False,
-						   make_yaml=False, 
+						   make_yaml=False,
 						   proj_data=False,
 						   proj_mc=False,
 						   efficiency=False,
@@ -38,7 +40,7 @@ def run_full_cut_variation(config_flow,
 						   data_driven_frac=False,
 						   v2_vs_frac=False,
 						   merge_images=False,
-         				   sys_trail=False):    
+         				   sys_trail=False):
 #___________________________________________________________________________________________________________________________
 	# Load and copy the configuration file
 	with open(config_flow, 'r') as cfgFlow:
@@ -51,13 +53,6 @@ def run_full_cut_variation(config_flow,
 	suffix = config['suffix'] 
 	vn_method = config['vn_method']
 	n_workers = config['nworkers']
-
-	print(f"config_flow: {config_flow}")
-	CutSets, _, _, _, _ = get_cut_sets_config(config_flow)
-	# REVIEW: uniformize the max cutsets variable
-	mCutSets = max(CutSets)
-
-	print(f"\033[32mINFO: Number of cutsets: {mCutSets}\033[0m")
 
 	output_dir = f"{output}/cutvar_{suffix}"
 	os.system(f"mkdir -p {output_dir}")
@@ -113,9 +108,9 @@ def run_full_cut_variation(config_flow,
 		check_dir(f"{output_dir}/config")
 		MakeyamlPath = os.path.join(work_dir, "./make_yaml_for_ml.py")
 		pre_process = "--preprocessed" if use_preprocessed else ""
-
-		print(f"\033[32mpython3 {MakeyamlPath} {config_flow} {pre_process} -o {output_dir} -s {suffix}\033[0m")
-		os.system(f"python3 {MakeyamlPath} {config_flow} {pre_process} -o {output_dir} -s {suffix}")
+		correlated = "--correlated" if correlated else ""
+		print(f"\033[32mpython3 {MakeyamlPath} {config_flow} {pre_process} -o {output_dir} -s {suffix} {correlated}\033[0m")
+		os.system(f"python3 {MakeyamlPath} {config_flow} {pre_process} -o {output_dir} -s {suffix} {correlated}")
 	else:
 		print("\033[33mWARNING: Make yaml will not be performed\033[0m")
 
@@ -194,7 +189,7 @@ def run_full_cut_variation(config_flow,
 		print("\033[32mINFO: vn extraction will be performed\033[0m")
 		check_dir(f"{output_dir}/ry")
 		if config['Dmeson'] == 'Dplus' and config.get('IncludeTempls'):
-			extract_template_weights(config_flow)
+			extract_template_weights(config_flow, correlated)
 		print('EXTRACTED TEMPLATE WEIGHTS')
 		
 		PrefitMcPath = os.path.join(work_dir, "./../invmassfitter/prefit_mc.py")
@@ -224,8 +219,8 @@ def run_full_cut_variation(config_flow,
 		# CurVarFracPath = work_dir + "./compute_frac_cut_var.py"
 		CurVarFracPath = os.path.join(work_dir, "./compute_frac_cut_var.py")
 
-		print(f"\033[32mpython3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix}\033[0m")
-		os.system(f"python3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix} --batch")
+		print(f"\033[32mpython3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix} {correlated}\033[0m")
+		os.system(f"python3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix} {correlated} --batch")
 	else:
 		print("\033[33mWARNING: Fraction by cut variation will not be performed\033[0m")
 
@@ -239,12 +234,7 @@ def run_full_cut_variation(config_flow,
 
 		#===========================================================================================================================
 		if sys_trail:
-			if config['minimisation'].get('combined', False) == False:
-       		# which means this is not for trails, intead for the reference
-				print(f"\033[32mpython3 {DataDrivenFracPath} -i {output_dir} -o {output_dir} -s {suffix} -b\033[0m")
-				main_data_driven_frac(inputdir=output_dir, outputdir=output_dir, suffix=suffix, batch=True, combined=False)
-			else:
-				print(f"CIAOOOO")
+			if combined:
 				# which means this is for trails, or the reference combined method
 				# correlatedCutVarPath was written in config TODO
 				# correlatedCutVarPath = os.path.join('/'.join(output_dir.split('/')[:-3]), 'pre_sys/cutvar_corr')				
@@ -252,12 +242,15 @@ def run_full_cut_variation(config_flow,
 				inputdir = os.path.join('/'.join(output_dir.split('/')[:-3]), 'pre_sys/cutvar_uncorr')
 				main_data_driven_frac(inputdir=inputdir, outputdir=output_dir, suffix=suffix, batch=True, combined=False, \
 										correlatedCutVarPath=correlatedCutVarPath, outputdir_combined='', systematics=True)
+			else:
+				# which means this is not for trails, instead for the reference
+				print(f"\033[32mpython3 {DataDrivenFracPath} -i {output_dir} -o {output_dir} -s {suffix} -b\033[0m")
+				main_data_driven_frac(inputdir=output_dir, outputdir=output_dir, suffix=suffix, batch=True, combined=False)
 
 		#===========================================================================================================================
 		else:
-			combined = config['minimisation'].get('combined', False)
 			print(f"\033[32mCombined method: {combined}\033[0m")
-			if config['minimisation']['correlated']:
+			if correlated:
 				# run the data-driven method with the corelated results
 				print(f"\033[32mCorrelated method will be performed\033[0m")
 				print(f"\033[32mpython3 {DataDrivenFracPath} -i {output_dir} -o {output_dir} -s {suffix} -b\033[0m")
@@ -298,18 +291,18 @@ def run_full_cut_variation(config_flow,
 
 		#===========================================================================================================================
 		if sys_trail:
-			if config['minimisation'].get('combined', False) == False:
-			# which means this is not for trails, intead for the reference
-				print(f"\033[32mpython3 {v2vsFDFracPath} {config_flow} -i {output_dir} -o {output_dir} -s {suffix} -b\033[0m")
+			if combined:
+				# which means this is for trails, or the reference combined method
 				main_v2_vs_frac(config=config_flow, inputdir=output_dir, outputdir=output_dir, suffix=suffix, combined=False)
 			else:
-			# which means this is for trails, or the reference combined method
+				# which means this is not for trails, intead for the reference
+				print(f"\033[32mpython3 {v2vsFDFracPath} {config_flow} -i {output_dir} -o {output_dir} -s {suffix} -b\033[0m")
 				main_v2_vs_frac(config=config_flow, inputdir=output_dir, outputdir=output_dir, suffix=suffix, combined=False)
 		#===========================================================================================================================
 		else:
 			combined = config['minimisation'].get('combined', False)
 			print(f"\033[32mCombined method: {combined}\033[0m")
-			if config['minimisation']['correlated']:
+			if correlated:
 				# run the data-driven method with the corelated results
 				print(f"\033[32mCorrelated method will be performed\033[0m")
 				print(f"\033[32mpython3 {v2vsFDFracPath} {config_flow} -i {output_dir} -o {output_dir} -s {suffix} -b\033[0m")
@@ -352,6 +345,8 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Arguments')
 	parser.add_argument('flow_config', metavar='text', default='config_flow_d0.yml', help='configuration file')
 	parser.add_argument("--use_preprocessed", "-prep", action="store_true", help="use preprocessed input")
+	parser.add_argument("--correlated", "-corr", action="store_true", help="perform correlated v2 estimation")
+	parser.add_argument("--combined", "-comb", action="store_true", help="perform combined v2 estimation")
 	parser.add_argument("--do_calc_weights", "-cw", action="store_true", help="skip calculation of weights")
 	parser.add_argument("--do_make_yaml", "-my", action="store_true", help="skip make yaml")
 	parser.add_argument("--do_proj_data", "-pd", action="store_true", help="skip projection for data")
@@ -365,11 +360,11 @@ if __name__ == "__main__":
 	parser.add_argument("--do_sys_trail", "-st", action="store_true", help="run for the systematic uncertainty, cut based AnRes")
 	args = parser.parse_args()
 
-	print(f"args.do_sys_trail: {args.do_sys_trail}")
-
 	start_time = time.time()
 	run_full_cut_variation(args.flow_config, 
                            args.use_preprocessed,
+                           args.correlated,
+                           args.combined,
 						   args.do_calc_weights,
 						   args.do_make_yaml, 
 						   args.do_proj_data, 
@@ -380,7 +375,7 @@ if __name__ == "__main__":
 						   args.do_data_driven_frac, 
 						   args.do_v2_vs_frac,
 						   args.do_merge_images,
-						   args.do_sys_trail)
+						   args.do_sys_trail,)
 
 	end_time = time.time()
 	execution_time = end_time - start_time

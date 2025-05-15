@@ -51,7 +51,7 @@ from utils.AnalysisUtils import GetPromptFDYieldsAnalyticMinimisation
 #     return (list(listEffPrompt_filtered), list(listEffFD_filtered), list(listRawYield_filtered),
 #             list(listEffPromptUnc_filtered), list(listEffFDUnc_filtered), list(listRawYieldUnc_filtered))
 
-def minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, outputdir, suffix, systematics):
+def minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, outputdir, suffix, correlated, systematics):
 
     hRawYieldsVsCut, hRawYieldsVsCutReSum, hRawYieldPromptVsCut, hRawYieldFDVsCut = [], [], [], []
     hEffPromptVsCut, hEffFDVsCut = [], []
@@ -207,7 +207,7 @@ def minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, output
 
         corrYields, covMatrixCorrYields, chiSquare, matrices = \
             GetPromptFDYieldsAnalyticMinimisation(listEffPrompt, listEffFD, listRawYield, listEffPromptUnc, listEffFDUnc,
-                                                listRawYieldUnc, config['minimisation']['correlated'])
+                                                  listRawYieldUnc, correlated)
 
         hCorrYieldPrompt.SetBinContent(iPt+1, corrYields.item(0))
         hCorrYieldPrompt.SetBinError(iPt+1, np.sqrt(covMatrixCorrYields.item(0, 0)))
@@ -394,7 +394,7 @@ def minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, output
         cFinalResPt[iPt].SaveAs(f'{outputdir}/{directory}/FinalResPt_{suffix}_pt{ptmins[iPt]}_{ptmaxs[iPt]}.png')
     
 
-def compute_frac_cut_var(config_flow, inputdir, outputdir, suffix, batch=False):
+def compute_frac_cut_var(config_flow, inputdir, outputdir, suffix, correlated, batch=False):
 
     gROOT.SetBatch(batch)
     gStyle.SetPaintTextFormat("4.2f")
@@ -469,11 +469,11 @@ def compute_frac_cut_var(config_flow, inputdir, outputdir, suffix, batch=False):
     latInfo.SetTextFont(42)
     latInfo.SetTextColor(1)
 
-    minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, outputdir, suffix, False)
+    minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, outputdir, suffix, correlated, False)
     if 'systematics' in config['minimisation']:
         for syst in config['minimisation']['systematics']:
             print(f'Running systematics: {syst}')
-            minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, f'{outputdir}/Syst', syst, systematics=syst)
+            minimise_chi2(config, ptmins, ptmaxs, hRawYields, hEffPrompt, hEffFD, f'{outputdir}/Syst', correlated, syst, systematics=syst)
 
 
 if __name__ == "__main__":
@@ -486,6 +486,8 @@ if __name__ == "__main__":
                         default=".", help="output directory")
     parser.add_argument("--suffix", "-s", metavar="text",
                         default="", help="suffix for output files")
+    parser.add_argument("--correlated", "-c", action="store_true", 
+                        help="Produce yml files for correlated cuts")
     parser.add_argument("--batch", "-b", action="store_true",
                         help="run in batch mode")
     args = parser.parse_args()
@@ -494,4 +496,4 @@ if __name__ == "__main__":
     print(f"args.outputdir: {args.outputdir}")
     print(f"args.suffix: {args.suffix}")
     print(f"args.batch: {args.batch}")
-    compute_frac_cut_var(args.config_flow, args.inputdir, args.outputdir, args.suffix, args.batch)
+    compute_frac_cut_var(args.config_flow, args.inputdir, args.outputdir, args.suffix, args.correlated, args.batch)
