@@ -91,7 +91,6 @@ def make_yaml(flow_config, outputdir, suffix, correlated):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Arguments')
     parser.add_argument('flow_config', metavar='text', default='config_flow.yml')
-    parser.add_argument('--preprocessed', action='store_true', help='Flag to indicate preprocessing of the sparses')
     parser.add_argument("--outputdir", "-o", metavar="text", default=".", help="output directory")
     parser.add_argument("--suffix", "-s", metavar="text", default="", help="suffix for output files")
     parser.add_argument("--correlated", "-c", action="store_true", help="Produce yml files for correlated cuts")

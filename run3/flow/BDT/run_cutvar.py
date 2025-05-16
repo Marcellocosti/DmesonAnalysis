@@ -46,11 +46,14 @@ def run_full_cut_variation(config_flow,
 	with open(config_flow, 'r') as cfgFlow:
 		config = yaml.safe_load(cfgFlow)
 
-	anres_dir = config['anresdir'] 
-	cent = config['centrality'] 
-	res_file = config['res_file'] 
-	output = config['out_dir'] 
-	suffix = config['suffix'] 
+	pre_process = "--preprocessed" if use_preprocessed else ""
+	correlated = "--correlated" if correlated else ""
+	
+	anres_dir = config['anresdir']
+	cent = config['centrality']
+	res_file = config['res_file']
+	output = config['out_dir']
+	suffix = config['suffix']
 	vn_method = config['vn_method']
 	n_workers = config['nworkers']
 
@@ -86,7 +89,6 @@ def run_full_cut_variation(config_flow,
 	if calc_weights:
 		print("\033[32mINFO: Calculation of weights will be performed\033[0m")
 		check_dir(f"{output_dir}/ptweights")
-		# CalcWeiPath = work_dir + "./ComputePtWeights.py"
 		CalcWeiPath = os.path.join(work_dir, "./ComputePtWeights.py")
 
 		print(f"\033[32mpython3 {CalcWeiPath} {config_flow} -o {output_dir} -s {suffix}\033[0m")
@@ -107,10 +109,8 @@ def run_full_cut_variation(config_flow,
 		print("\033[32mINFO: Make yaml will be performed\033[0m")
 		check_dir(f"{output_dir}/config")
 		MakeyamlPath = os.path.join(work_dir, "./make_yaml_for_ml.py")
-		pre_process = "--preprocessed" if use_preprocessed else ""
-		correlated = "--correlated" if correlated else ""
-		print(f"\033[32mpython3 {MakeyamlPath} {config_flow} {pre_process} -o {output_dir} -s {suffix} {correlated}\033[0m")
-		os.system(f"python3 {MakeyamlPath} {config_flow} {pre_process} -o {output_dir} -s {suffix} {correlated}")
+		print(f"\033[32mpython3 {MakeyamlPath} {config_flow} -o {output_dir} -s {suffix} {correlated}\033[0m")
+		os.system(f"python3 {MakeyamlPath} {config_flow} -o {output_dir} -s {suffix} {correlated}")
 	else:
 		print("\033[33mWARNING: Make yaml will not be performed\033[0m")
 
@@ -119,9 +119,7 @@ def run_full_cut_variation(config_flow,
 	if proj_mc or proj_data:
 		print("\033[32mINFO: Projections will be performed\033[0m")
 		check_dir(f"{output_dir}/proj")
-		# ProjPath = "./proj_thn.py"
 		ProjPath = os.path.join(work_dir, "./proj_thn.py")
-		pre_process = "--preprocessed" if use_preprocessed else ""
 		systematics = "--systematics" if sys_trail else ""
 		proj_data = "--proj_data" if proj_data else ""
 		proj_mc = "--proj_mc" if proj_mc else ""
@@ -132,7 +130,7 @@ def run_full_cut_variation(config_flow,
 			"""Run sparse projection for a given cutset index."""
 			iCutSets = f"{i:02d}"
 			print(f"\033[32mProcessing cutset {iCutSets}...\033[0m")
-   
+
 			if not os.path.exists(f"{output_dir}/config"):
 				output_dir_uncorr = os.path.join('/'.join(output_dir.split('/')[:-3]), 'pre_sys/cutvar_uncorr')
 				config_cutset = f"{output_dir_uncorr}/config/cutset_uncorr_{iCutSets}.yml"
@@ -168,7 +166,6 @@ def run_full_cut_variation(config_flow,
 	if efficiency:
 		print("\033[32mINFO: Efficiency will be performed\033[0m")
 		check_dir(f"{output_dir}/eff")
-		# EffPath = work_dir + "./../compute_efficiency.py"
 		EffPath = os.path.join(work_dir, "./../compute_efficiency.py")
 
 		def run_efficiency(i):
@@ -191,7 +188,7 @@ def run_full_cut_variation(config_flow,
 		if config['Dmeson'] == 'Dplus' and config.get('IncludeTempls'):
 			extract_template_weights(config_flow, correlated)
 		print('EXTRACTED TEMPLATE WEIGHTS')
-		
+
 		PrefitMcPath = os.path.join(work_dir, "./../invmassfitter/prefit_mc.py")
 		if config.get("PrefitMC"):
 			print("########## PREFITTING MC FIRST ##########")
@@ -216,7 +213,6 @@ def run_full_cut_variation(config_flow,
 	if frac_cut_var:
 		print("\033[32mINFO: Fraction by cut variation will be performed\033[0m")
 		check_dir(f"{output_dir}/CutVarFrac")
-		# CurVarFracPath = work_dir + "./compute_frac_cut_var.py"
 		CurVarFracPath = os.path.join(work_dir, "./compute_frac_cut_var.py")
 
 		print(f"\033[32mpython3 {CurVarFracPath} {config_flow} {output_dir} -o {output_dir} -s {suffix} {correlated}\033[0m")
@@ -229,7 +225,6 @@ def run_full_cut_variation(config_flow,
 	if data_driven_frac:
 		print("\033[32mINFO: Fraction by Data-driven method will be performed\033[0m")
 		check_dir(f"{output_dir}/DataDrivenFrac")
-		# DataDrivenFracPath = work_dir + "./ComputeDataDriFrac_flow.py"
 		DataDrivenFracPath = os.path.join(work_dir, "./ComputeDataDriFrac_flow.py")
 
 		#===========================================================================================================================
@@ -285,8 +280,7 @@ def run_full_cut_variation(config_flow,
 	# Compute v2 vs fraction
 	if v2_vs_frac:
 		print("\033[32mINFO: v2 vs fraction will be performed\033[0m")
-		# check_dir(f"{output_dir}/V2VsFrac")
-		# v2vsFDFracPath = work_dir + "./ComputeV2vsFDFrac.py"
+		check_dir(f"{output_dir}/V2VsFrac")
 		v2vsFDFracPath = os.path.join(work_dir, "./ComputeV2vsFDFrac.py")
 
 		#===========================================================================================================================
@@ -300,7 +294,6 @@ def run_full_cut_variation(config_flow,
 				main_v2_vs_frac(config=config_flow, inputdir=output_dir, outputdir=output_dir, suffix=suffix, combined=False)
 		#===========================================================================================================================
 		else:
-			combined = config['minimisation'].get('combined', False)
 			print(f"\033[32mCombined method: {combined}\033[0m")
 			if correlated:
 				# run the data-driven method with the corelated results
